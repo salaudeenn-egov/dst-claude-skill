@@ -1,7 +1,7 @@
 ---
 name: superman
 description: >-
-  Salaudeen's complete DIGIT HCM (Health Campaign Management) knowledge base at eGov —
+  The eGov DST team's complete DIGIT HCM (Health Campaign Management) knowledge base —
   one skill covering platform architecture, code development, QA/testing, DST data-support
   work, and code review. Invoke for ANYTHING HCM-related: campaign data investigation,
   ES-vs-DB (Elasticsearch vs PostgreSQL) ghost-record RCA, reconciliation/recovery scripts,
@@ -20,7 +20,7 @@ description: >-
 
 # Superman — DIGIT HCM Master Knowledge Base
 
-One skill holding everything for Salaudeen's HCM work at eGov, organized into five
+One skill holding the DST team's accumulated HCM knowledge at eGov, organized into five
 work-streams. Read the house rules and the core model below, then open the reference
 file(s) for the task at hand.
 
@@ -30,9 +30,9 @@ file(s) for the task at hand.
 
 ## House rules (apply in every session)
 
-- **User:** Salaudeen, L3 SWE on the HCM product at eGov. Data investigation + fixes across
-  ~27 health campaigns (Nigeria, Mozambique, Senegal, Togo, Chad, Burundi, Congo). Writes ES
-  queries, SQL, Python. Work dir `D:\DST`.
+- **Audience:** DST / HCM engineers at eGov. Data investigation + fixes across ~27 health
+  campaigns (Nigeria, Mozambique, Senegal, Togo, Chad, Burundi, Congo). Typical work: ES
+  queries, SQL, Python scripts. Maintainer: Salaudeen (L3 SWE); original work dir `D:\DST`.
 - **Doc/response style:** no emojis, no decorative unicode (no arrows, no rule lines). No
   bookmarks in Word docs. Plain text + standard markdown.
 - **Numbers rule:** in reports use the analysis-script numbers, never silently swap to
@@ -141,7 +141,7 @@ The stable core everything else builds on.
 
 ## Keeping this skill current
 
-- Raw per-session facts live in the auto-memory (`...\projects\C--Users-Salaudeen-N\memory\`);
+- Raw per-session facts live in the maintainer's local Claude auto-memory;
   this skill is the curated, task-oriented layer synced from it.
 - When the user says "update skills" or at the end of a work-stream, fold new durable learnings
   into the matching `references/<stream>/` file and add a dated Changelog entry below. Mark

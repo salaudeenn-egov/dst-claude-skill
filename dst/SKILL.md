@@ -2,7 +2,7 @@
 name: dst
 description: >-
   Data-support lane of the HCM knowledge base (part of the `superman` skill). DST is
-  Salaudeen's DIGIT HCM data work at eGov: ES-vs-DB (Elasticsearch vs PostgreSQL)
+  the eGov DST team's DIGIT HCM data work: ES-vs-DB (Elasticsearch vs PostgreSQL)
   reconciliation and ghost-record RCA, data-recovery scripting, per-campaign data fixes,
   the automation pipeline (including its Airflow migration), and campaign daily reporting.
   Invoke for any campaign data investigation, reconciliation, recovery script, report build,
