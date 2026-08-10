@@ -41,6 +41,12 @@ file(s) for the task at hand.
   Redis TTL). Never present a single run or a cache hit as proof. Say what is reliable vs noise.
 - **Sensitive data:** Nigeria DB is production, read-only. Never write test data to production
   tenants (e.g. `so`). Use tenant `dev` for testing.
+- **No credentials in this skill:** never write passwords, tokens, usernames, or Basic-auth
+  headers into any skill file or example — use `<REDACTED>` / `<REDACTED-USER>` / `{{variable}}`
+  placeholders; real values stay in the local `.env` / secret store only (see `SECURITY.md`).
+- **Encrypt saved data:** campaign extracts (ES/DB dumps, Excel/CSV, tracer payloads) contain
+  beneficiary PII — store them on an encrypted volume or in password-protected archives, delete
+  when done, and never put raw campaign data into this skill or its repo.
 
 ## The one model to hold
 

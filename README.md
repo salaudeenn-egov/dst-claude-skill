@@ -97,7 +97,8 @@ This is a living knowledge base — it stays valuable only if findings flow back
 
 This repository contains **sanitized knowledge only**. All production credentials, auth/session tokens, usernames (`<REDACTED-USER>`), and Basic-auth headers have been replaced with placeholders (full credential + username audit: 2026-08-10). The bundled Postman collection uses `{{authToken}}` / `{{username}}` / `{{password}}` / `{{basicAuth}}` variables — fill them locally after import.
 
-- Real values live only in your deployment `.env` / secret store and must never be committed (enforced by `.gitignore`, backstopped by `SECURITY.md`).
+- **No credentials in skills — ever.** Real values live only in your deployment `.env` / secret store and must never be committed (enforced by `.gitignore`, backstopped by `SECURITY.md`). Run a secret sweep before every push.
+- **Encrypt saved data at rest.** Campaign extracts and exports contain beneficiary PII — keep them on an encrypted volume or in password-protected archives, delete them when done, and never commit raw campaign data here (aggregate findings and methods only).
 - If you find a secret in the files or history, follow `SECURITY.md`: report it, remove it, rotate it.
 - This is internal engineering knowledge — the repository must stay **private**.
 
