@@ -8,12 +8,45 @@ All content is **sanitized**: no credentials, tokens, or usernames (see [Securit
 
 ## Why use this
 
+HCM knowledge has a specific problem: the platform's real behaviour differs from what the
+code appears to promise, and the differences only surface in production. A write returns
+`202 Accepted` and the record still never persists. A search "finds" a record that exists
+only in a 60-second Redis cache. Elasticsearch and PostgreSQL are written by independent
+Kafka consumers, so they silently disagree — and every dashboard built on ES inherits the
+disagreement. None of this is in the official docs. Until now it lived in one engineer's
+head and scattered scripts, and every new person paid the discovery cost again — usually
+mid-incident, on a live campaign, with a partner waiting on numbers.
+
+This repo moves that knowledge into Claude's context. When you work on anything HCM,
+Claude starts from the team's accumulated answers — including the dead ends, so you do
+not repeat them.
+
+### What that looks like in practice
+
 | Without the skill | With the skill |
 |---|---|
-| Rediscover that the tracer `requestBody` is not valid JSON, after an hour of failed parsing | Claude already knows, and uses regex extraction from the start |
-| Ask a teammate which date field works on the project-task index | `Data.taskDates` works; `Data.auditDetails.createdTime` does not exist — documented with the evidence |
-| Debug why a "persisted" record vanished after a minute | The 60-second Redis cache false-positive pattern is a core rule Claude applies to every verification |
-| Build a campaign report from scratch | The full daily reporting pipeline, age-band rules, and DQ checks are in the `dst` lane |
+| Spend an hour discovering that the tracer `requestBody` is not valid JSON (it is a Java toString with unquoted keys) | Claude uses regex extraction from the start — `json.loads` on tracer bodies is a documented dead end |
+| Filter the project-task index on `Data.auditDetails.createdTime`, get 0 results, and conclude there is no data | Claude knows that field does not exist on task docs and filters on `Data.taskDates` — verified against the live index |
+| Report a record as "persisted" because a search returned it, then watch it vanish a minute later | The Redis cache false-positive rule (`id=None` = cache hit, verify DB after the 60s TTL) is applied to every persistence claim |
+| Investigate 18,000 ghost records from scratch — where to look, which index, which tracer query | The 6-phase ES-vs-DB RCA SOP walks the exact investigation, proven on Sokoto, Bauchi, Ondo, and Chad |
+| Push recovered child records before their parents and hit `VALIDATION_ERROR` on every one | The dependency order (Individual -> Household -> Member -> Beneficiary -> Task) is a core rule |
+| Build a children-treated report and have it disagree with the dashboard, without knowing which is right | Age-band rules (bands follow DOSE/product, not age), date-window-clip artifacts, and reconciliation cases for 10+ tenants are documented with the evidence |
+| Trust the dashboard number and report it | House rule: report analysis-script numbers, never silently swap to dashboard figures — with the confirmed discrepancy cases that motivated it |
+| Review an HCM diff with a generic checklist | Review runs against the five failure modes this team actually shipped and fixed (cache-before-DB, batch rollback, silent enrichment, ...) |
+
+### What this means for the team
+
+- **Onboarding drops from months to days.** A new engineer's first ghost-record
+  investigation follows the same proven SOP as their fiftieth.
+- **Fewer production mistakes.** The rules that prevent real incidents (never write test
+  data to production tenants, verify past the cache TTL, parents before children) are
+  applied automatically, not remembered under pressure.
+- **Consistent, defensible numbers.** Reports follow the same formulas, age bands, and
+  DQ checks across all campaigns and all team members.
+- **Institutional memory survives turnover.** The knowledge is versioned, reviewed, and
+  owned by the team — not by whoever happened to debug the incident.
+- **It compounds.** Every new RCA, gotcha, or fix folded back in (see
+  [Contributing](#contributing)) makes the next investigation faster for everyone.
 
 ## What's inside
 
