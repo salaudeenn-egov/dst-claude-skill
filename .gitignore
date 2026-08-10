@@ -1,0 +1,34 @@
+# Secrets / credentials — never commit
+.env
+.env.*
+*.env
+*.key
+*.pem
+*.p12
+*.pfx
+*credentials*
+*secret*
+*.token
+service-account*.json
+gcp-*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Logs / local scratch
+*.log
+tmp/
+scratch/
+*.tmp
