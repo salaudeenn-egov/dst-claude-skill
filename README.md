@@ -17,17 +17,15 @@ All content is **sanitized**: no credentials, tokens, or usernames (see [Securit
 
 ## What's inside
 
-One umbrella skill, `superman`, holds everything, organized into five lanes. Five thin entry-point skills route into it.
+Three skills. `superman` holds all the content, organized into five lanes; two entry-point skills route into it.
 
-| Lane | Skill | Use it for |
-|------|-------|-----------|
-| Platform context | `hcm-context` | The HCM mental model: entity chain, offline sync, Kafka two-topic pattern, why ES and DB diverge, 21 hard-won gotchas |
-| Development | `hcm-dev` | Writing fixes to HCM Java services: transformer, indexer, persister, validators — with file:line evidence and before/after diffs |
-| QA / testing | `hcm-qa` | Test plans, API harnesses, and the honest-verification methodology (DB-verified past the cache TTL, never trust a single run) |
-| Data support | `dst` | ES-vs-DB reconciliation, ghost-record RCA, chain-recovery scripts, per-campaign findings, daily reporting pipeline |
-| Code review | `hcm-code-reviewer` | Reviewing HCM changes against the recurring failure modes this team has actually shipped and fixed |
+| Skill | Use it for |
+|-------|-----------|
+| `superman` | The complete knowledge base — all five lanes (context, dev, QA, data support, review). Invoke for anything HCM. |
+| `dst` | Data support: ES-vs-DB reconciliation, ghost-record RCA, chain-recovery scripts, per-campaign findings, daily reporting, automation + Airflow |
+| `hcm-engineering` | Platform context (entity chain, gotchas), Java code fixes (transformer/indexer/persister/validators), QA with the honest-verification methodology, and HCM-specific code review |
 
-Also bundled: a sanitized **Postman collection** with 183 HCM API endpoints (`superman/references/context/assets/`).
+Also bundled: a sanitized **Postman collection** with 183 HCM API endpoints (`superman/references/context/assets/`) and generic **Airflow DAG patterns** (`superman/references/dst/airflow-dag-patterns.md`).
 
 ## Quick start
 
@@ -36,7 +34,7 @@ Also bundled: a sanitized **Postman collection** with 183 HCM API endpoints (`su
    ```bash
    git clone https://github.com/salaudeenn-egov/dst-claude-skill.git
    cd dst-claude-skill
-   cp -r superman hcm-context hcm-dev hcm-qa dst hcm-code-reviewer ~/.claude/skills/
+   cp -r superman dst hcm-engineering ~/.claude/skills/
    ```
 
    On Windows (PowerShell):
@@ -44,7 +42,7 @@ Also bundled: a sanitized **Postman collection** with 183 HCM API endpoints (`su
    ```powershell
    git clone https://github.com/salaudeenn-egov/dst-claude-skill.git
    cd dst-claude-skill
-   Copy-Item -Recurse superman,hcm-context,hcm-dev,hcm-qa,dst,hcm-code-reviewer "$env:USERPROFILE\.claude\skills\"
+   Copy-Item -Recurse superman,dst,hcm-engineering "$env:USERPROFILE\.claude\skills\"
    ```
 
 2. Open Claude Code and try it:
@@ -74,14 +72,11 @@ superman/                     Umbrella skill — the full knowledge base
     context/                  Architecture, ES/DB data reference, gotchas, API index
     dev/                      Ghost-record and transformer fixes
     qa/                       Test plans, harnesses, verification methodology
-    dst/                      RCA SOP, recovery scripts, campaigns, reporting, automation
+    dst/                      RCA SOP, recovery scripts, campaigns, reporting,
+                              automation, Airflow migration + DAG patterns
     review/                   Code-review checklist
 dst/                          Entry point -> data-support lane
-hcm-context/                  Entry point -> platform-context lane
-hcm-dev/                      Entry point -> development lane
-hcm-qa/                       Entry point -> QA lane
-hcm-code-reviewer/            Entry point -> code-review lane
-airflow-dag-patterns/         Standalone: Airflow DAG patterns for the automation pipeline
+hcm-engineering/              Entry point -> context, dev, QA, and review lanes
 ```
 
 ## Contributing

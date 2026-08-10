@@ -26,17 +26,18 @@ skills reference this one instead of re-deriving architecture. This is the
 
 ## The skill system (how the pieces fit)
 
-| Skill | Owns |
-|---|---|
-| **hcm-context** (this) | Platform architecture, entity chain, ES/DB structure, API patterns, credentials, tenants, gotchas. The stable core. |
-| **hcm-dev** | Writing/shipping code fixes to HCM Java services (transformer, indexer, validators, persister). |
-| **hcm-qa** | Test plans, harnesses, execution, DB-verified results, verification methodology. |
-| **dst** | Data support: ES-vs-DB RCA, ghost-record recovery scripting, per-campaign fixes, automation, daily reporting. |
-| **hcm-code-reviewer** | Reviewing HCM diffs against the platform's specific hazards (ghost records, null-safety, cache-before-DB, batch rollback). |
+All content lives in `superman` as five lanes; two entry-point skills route into it.
 
-Raw per-session facts live in the auto-memory
-(`...\projects\C--Users-Salaudeen-N\memory\`). These skills are the curated,
-task-oriented layer synced from it.
+| Lane (in `superman/references/`) | Owns | Entry-point skill |
+|---|---|---|
+| **context** (this) | Platform architecture, entity chain, ES/DB structure, API patterns, credential pointers, tenants, gotchas. The stable core. | `hcm-engineering` |
+| **dev** | Writing/shipping code fixes to HCM Java services (transformer, indexer, validators, persister). | `hcm-engineering` |
+| **qa** | Test plans, harnesses, execution, DB-verified results, verification methodology. | `hcm-engineering` |
+| **dst** | Data support: ES-vs-DB RCA, ghost-record recovery scripting, per-campaign fixes, automation + Airflow, daily reporting. | `dst` |
+| **review** | Reviewing HCM diffs against the platform's specific hazards (ghost records, null-safety, cache-before-DB, batch rollback). | `hcm-engineering` |
+
+Raw per-session facts live in the maintainer's local Claude auto-memory. These skills
+are the curated, task-oriented layer synced from it.
 
 ## House rules (apply in every HCM session)
 

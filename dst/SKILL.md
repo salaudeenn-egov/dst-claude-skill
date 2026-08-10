@@ -32,6 +32,7 @@ Read for this lane:
 - `~/.claude/skills/superman/references/dst/automation-and-structure.md` — `D:\DST\automation` pipeline + `D:\DST` folder conventions.
 - `~/.claude/skills/superman/references/dst/airflow-migration.md` — migrating the automation pipeline's orchestration to Apache Airflow: Scheduler+Processor DAG pattern, Postgres-lock per-tenant concurrency, the Airflow-3 CronTriggerTimetable gotcha, marker-dict success/no-op/failure protocol.
 - `~/.claude/skills/superman/references/dst/dst-team-and-hcm-modules.md` — what DST (DIGIT Success Team) is + the full HCM module surface.
+- `~/.claude/skills/superman/references/dst/airflow-dag-patterns.md` — generic production Airflow DAG patterns (design principles, operators/sensors, testing, deployment) supporting the migration work.
 
-Related lanes: HCM Java fixes -> `hcm-dev`; test execution -> `hcm-qa`; platform facts ->
-`hcm-context`. Whole picture -> `/superman`.
+Related lanes: HCM Java fixes, QA, platform facts, code review -> `hcm-engineering`.
+Whole picture -> `/superman`.

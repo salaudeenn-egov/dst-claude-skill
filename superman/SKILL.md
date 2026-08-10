@@ -127,6 +127,9 @@ The stable core everything else builds on.
   DAG serves every tenant dynamically), the marker-dict success/no-op/failure
   protocol, and the "grouped by credential set, not by country" tenant-grouping
   discovery. `pipeline/*.py` is never touched — orchestration layer only.
+- `dst/airflow-dag-patterns.md` — generic production Airflow DAG patterns (design
+  principles, operators/sensors, testing, deployment) supporting the migration
+  work. Formerly the standalone `airflow-dag-patterns` skill.
 
 ### 5. Code review (HCM-specific hazards) — `references/review/`
 - `review/overview.md` — the 5 hazards that matter most + how to review.
