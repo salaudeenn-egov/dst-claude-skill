@@ -247,6 +247,16 @@ The stable core everything else builds on.
 
 ## Changelog
 
+- 2026-09-10 — NEW `dst/null-datapoints-audit.md` (Null-DQ audit sessions 2026-09-09/10).
+  Problem: audit totals sat at exactly 1M rows, explained away as export-cap truncation;
+  user challenged Sokoto. Approach: listed workbook sheet_names across the dump — 15 of 34
+  files are multi-sheet. Root cause: exports spill overflow into Sheet2/Sheet3 (Chad = 7
+  district sheets) and pandas default reads only Sheet1; v1 undercounted 14 state-cycles
+  (Chad 118K -> 1.23M, Bauchi C2/C3 -> ~2.17M). Fix: sheet_name=None + concat; truncation
+  = LAST sheet at cap only. Also captures the audit rules, Chad's divergent extract format
+  (no GPS/productName; Referred/Ineligible column names -> referral exclusion didn't
+  trigger, OPEN item), blank-vs-0 semantics on the audit sheet, and the live
+  log->Google-Sheet watcher + xlsx-verified final-push pattern.
 - 2026-09-10 — NEW `qa/stock-supply-chain-flow.md` (curated from stock-flow test memory,
   2026-08-24 session). Problem: stock transfers silently offer no receiver when warehouse
   users are stacked at one level — looks like missing master data. Approach: reasoned from

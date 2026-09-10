@@ -41,6 +41,7 @@ Do NOT use for:
 | `references/campaigns.md` | Working a specific tenant; need its config, API base, last-known token, findings, recovery status, or script inventory |
 | `references/reporting.md` | Building a daily campaign report; need the pipeline, slot structure, treatment-rate/duplicate/band formulas, per-drug age bands, per-day numbers, python-docx helpers, or DQ rules |
 | `references/automation-and-structure.md` | Touching `D:\DST\automation`; need the scheduler→config→analyze/cdd_sync/report/notify flow, .env/creds, known bugs, or the D:\DST folder reorg + naming conventions |
+| `references/null-datapoints-audit.md` | Auditing D&E CHILDREN_TREATED extracts for missing data points / SPAQ band mismatches; need the counting rules (blank-only child name, referral/OIC + VAS/ORS structural exclusions, cohort-aging SPAQ2), the MULTI-SHEET export gotcha (pd.read_excel reads only Sheet1 — v1 undercounted 14 state-cycles; Chad = 7 district sheets), Chad's different extract format (no GPS/productName columns, `Referred`/`Ineligible` names), the live log-to-Google-Sheet push pattern, or the audit sheet/tooling locations |
 | `references/dst-team-and-hcm-modules.md` | You need the wider picture: what the DIGIT Success Team (DST) is (L1/L2/Manager support org) and the full HCM module surface (HRMS, attendance, localization, microplan ingestion, inventory, dashboards, custom reports, payments, helpdesk, admin console, infra monitoring) that data work sits inside |
 
 ## Recurring gotchas (data work)
