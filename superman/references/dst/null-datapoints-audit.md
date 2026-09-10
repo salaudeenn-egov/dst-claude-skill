@@ -68,7 +68,10 @@ Ineligible, Referred`) across 7 province sheets. Consequences:
 
 - **No latitude/longitude columns at all** (location is Province/District/HF/Locality
   text) and **no productName** -> Lat/Long and SPAQ are BLANK on the audit sheet =
-  unmeasurable from this extract, not clean. On the sheet, blank = column absent,
+  unmeasurable from this extract, not clean. ROOT CAUSE found 2026-09-10: the Chad
+  generator (`children_cohort.xlsx` cohort script) DOES fetch latitude/longitude/
+  productName in `_source` but drops them at display-column selection — see
+  `dst/cross-cycle-cohort-reports.md`. On the sheet, blank = column absent,
   0 = checked and clean — keep that distinction (the live watcher initially showed 0;
   the xlsx-verified final push corrected it to blank).
 - **Referral exclusion did NOT trigger for Chad**: its columns are named

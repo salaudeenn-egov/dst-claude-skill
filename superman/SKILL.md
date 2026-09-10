@@ -247,6 +247,18 @@ The stable core everything else builds on.
 
 ## Changelog
 
+- 2026-09-10 — NEW `dst/cross-cycle-cohort-reports.md` (cohort-script reviews, same-day
+  session). Problem: "does this report capture reuse from Cycle 1 to Cycle 2?" — two
+  scripts reviewed (Chad generator + Sokoto draft). Approach: traced how the pivot key
+  survives cycles (projectBeneficiary created once, PBC stable) and what each query
+  actually fetches. Key findings: the all-cycles date-window cardinal rule (windowed
+  fetch silently collapses the reuse view — every child looks new), per-event flags
+  wrongly treated static, redose rows dropped by keep-first dedupe, and the Chad GPS/SPAQ
+  audit blanks ROOT-CAUSED to the generator fetching lat/long/productName but dropping
+  them at display-column selection (cross-linked into dst/null-datapoints-audit.md).
+  Plus the defect checklist: bulk decrypt (2K/call, DECRYPT_FAILED sentinel), size-vs-hits
+  enrichment risk, age-band double counting, Africa/Lagos-not-Harare tz, O(1) PBC record
+  index vs the O(N*M) hang.
 - 2026-09-10 — NEW `dst/null-datapoints-audit.md` (Null-DQ audit sessions 2026-09-09/10).
   Problem: audit totals sat at exactly 1M rows, explained away as export-cap truncation;
   user challenged Sokoto. Approach: listed workbook sheet_names across the dump — 15 of 34
