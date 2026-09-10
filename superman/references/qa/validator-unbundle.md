@@ -120,3 +120,17 @@ Incident on Salama Rancher on-prem PROD (NOT dev). Persister consumes 101 topics
 ## Deliverables (Downloads)
 - HCM-Null-Relation-Curls.txt — 5 null-relation-link curls (fresh UUIDs, create+verify).
 - HCM-Dummy-Data-AllIndexes.txt — valid fully-linked dummy record per index (create in order 1..7).
+
+## mhbase run (2026-08-19) - unbundled AND orphans PERSIST (worse than UAT)
+Adapted harness: scratchpad mhbase/test_unbundle_mhbase.py (built by line-patching the UAT script;
+live deployment probes; stock sample fetched live). Tally 20 pass-class / 1 FINDING.
+- **Key difference vs mc-nigeria-uat:** ghost-parent creates are accepted AND LAND IN DB - member
+  w/ ghost individual, task w/ ghost PROJECT, ghost productVariant, ghost beneficiary, referral w/
+  ghost PB, side-effect w/ ghost task all persisted 1/1 as orphans. On UAT they were dropped
+  downstream. This build actively manufactures ghost-record divergence (the SMC ES-vs-DB pattern).
+- Always-on validators all hold: RequiredLink null-PB 400, delivered-task-empty-resources 400,
+  update-non-existent 400, dup-across-calls 202/400 + 1 row, missing tenantId 400, in-batch dedup
+  [X,X,U1,U2] -> 3 distinct (household + task).
+- FINDING: household _delete no-op reproduced (UNB-003).
+- Harness artifact to remember: member cases with isHeadOfHousehold=false on empty households show
+  0-persist because of the HEAD RULE, not existence validation (ghost member with head=true persists).

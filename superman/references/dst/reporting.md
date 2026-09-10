@@ -120,8 +120,21 @@ Performance bands (4 bands):
 ---
 
 ## Age bands per drug (they differ; do NOT mix)
-- SMC / SPAQ: treated range 3-59 months. SPAQ1 = 12-59m, SPAQ2 = 3-11m. Split is
-  qty-based (qty 1 = SPAQ2, qty 2 = SPAQ1 in the old logic).
+- SMC / SPAQ: treated range 3-59 months. **SPAQ1 = 3-11m, SPAQ2 = 12-59m.**
+
+  CORRECTED 2026-08-24 — this line and SKILL.md both had the two labels SWAPPED,
+  and had done for a long time. Misleading first read: the automation Excel looks
+  like it contradicts the KB, so the tempting "fix" is to swap two working
+  columns. Settling evidence, from the code, three links deep:
+    analyze.py  `if age <= 11: m["drug2"] += 1  else: m["drug1"] += 1`
+    analyze.py  `d1 = "SPAQ2 (12-59m)"` and `d2 = "SPAQ1 (3-11m)"`
+    analyze.py  row order `..., r["drug1"], r["drug2"], ...` matches `..., d1, d2, ...`
+  so the age<=11 bucket (drug2) lands under the SPAQ1 header. project_bo_smc_recon.md,
+  project_ko_smc.md, project_na_smc.md and dashboard-recon-tool.md all agreed with
+  the CODE; only these two summary files were wrong. Note line 127 below (Togo)
+  was already correct, so this file contradicted itself.
+  Root cause: a summary written from memory rather than from the column headers.
+  THE CODE IS CORRECT. Do not "fix" it to match an older doc.
 - AZM (Kaduna, `kd`): single drug, NO SPAQ split. Treated range 1-59 months. Age-based
   split: `azm_1_11` (age <= 11), else `azm_12_59`. Labels `AZM 1-11m` / `AZM 12-59m`.
 - Togo MRDN (`tg`): SPAQ 0-3m (0-2m), SPAQ1 3-11m, SPAQ2 12-59m.
@@ -286,6 +299,11 @@ no `campaignNumber` field, filter by `projectTypeId` + `role`. Scripts (tg):
 ---
 
 ## Dashboard-vs-Report reconciliation (methodology, proven ab/pl/bo/ba/ke, Jul 2026)
+
+> AUTOMATED 2026-08-14: this whole methodology (severity bands, cause library,
+> DQ audit, flagged-record dumps) is now the notebook tool at
+> `D:\DST\scripts\dashboard-recon` — see `dashboard-recon-tool.md`. Run the
+> tool first; fall back to manual queries only for UNEXPLAINED verdicts.
 
 Goal: confirm the custom CHILDREN_TREATED report equals the DIGIT dashboard, explain any gap,
 run DQ + drug/age-mismatch. Workflow: read the extract (python-calamine) -> reconcile counts by

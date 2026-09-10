@@ -24,7 +24,7 @@ One skill holding the DST team's accumulated HCM knowledge at eGov, organized in
 work-streams. Read the house rules and the core model below, then open the reference
 file(s) for the task at hand.
 
-> Living skill. Last synced 2026-08-04. Point-in-time: file:line citations, tokens,
+> Living skill. Last synced 2026-08-27. Point-in-time: file:line citations, tokens,
 > and counts may be stale — verify against current code / live systems before asserting
 > as fact. Tokens rotate; treat any token as last-known. See "Keeping this skill current".
 
@@ -91,6 +91,14 @@ The stable core everything else builds on.
 - `qa/validator-unbundle.md` — the unbundle fix under test, feature flags, U/S/B/D/F/E test
   series, Python harness + Postman collection, null-relation findings, persister test plan.
 - `qa/transformer-error-handling.md` — HDDF-5226 12 test cases, setup, defects (TC-08/09/10), docs.
+- `qa/correlation-tenantid-propagation.md` — correlation-id + tenantId propagation verification on
+  mhbase against the platform report: the two-id gateway split, the idgen log gap, the mdms cache
+  artifact, control-search discipline, and the mint-case method.
+- `qa/mhbase-console-perf-testing.md` — mhbase env + Admin Console perf benchmarking: the
+  householdType silent-drop root cause (202+cache then permanent loss; back-fill comes from Redis
+  not DB), unified-template hard rules (immutable rows, mandatory targets, Warehouse-only, numeric
+  phones, Boundary-Management-only ingestion), benchmark tier method + mapping semantics, device-log
+  QA additions, deliverable locations.
 - `qa/persister-regression.md` — persister/bulk-sync regression: search-clone-mutate method, working
   create payloads (real refs), verified persister behaviours (batch/DLQ/idempotency), and the
   evidence-backed edge cases NOT handled (in-batch dup batch-loss, household update no-op,
@@ -118,7 +126,79 @@ The stable core everything else builds on.
   duplicates (same ID consumed by a different CDD) + 9,961 phone-vs-phone collisions, via the
   reusable tracer-population -> id_pool cross-check -> classify script (ch_dup_id_crosscheck.py).
   Read for anything beneficiary-ID / id_pool / INVALID_ID / duplicate-beneficiary related.
+- `dst/dss-dashboard-analytics-kpi.md` — the DSS dashboard end to end (HDDF-4931):
+  dashboard-analytics backend on `analytics-raw-response-transform` (rawResponse
+  charts, server-resolved colorRules), HCM-BAUCHI PROD config layout, the TWO
+  chartType vocabularies (master = frontend render type, ChartApiConfig = backend
+  handler), frontend health-dss rendering constraints, the fleet chart-config audit
+  (terms-size 10-bucket truncation class, ignored date filters, 8-tenant
+  campaign-scope divergence) with `validate_chartapi.py`, the live-verified
+  data-point catalog per index (doseIndex==cycleIndex — 3-daily-doses KPI
+  infeasible; supervision checklists rich; SMC band targets exist; pre-aggregated
+  KPI indices `stock_reconciliation_summary` / `stock_allocation_distribution`),
+  and the WHO/SMC-Alliance-anchored KPI recommendation set + DQ card/table design.
+  2026-09-08 additions: local dev bring-up (health tree + central mode + ES-401
+  blocker), ba PROD formula defects (uncapped %, docs-vs-children, open age bands,
+  insights-always-0%), transformer field surface (locationAccuracy, waybillNumber,
+  RDT checklist counts), funder expectations (Gates/GF/PMI/AMF/GiveWell), and KPI
+  catalog v2 (#16-43: forensics, present-but-idle, projected completion, sync-lag
+  honest form). Read BEFORE any DSS chart config change or dashboard KPI proposal.
+- `dst/dashboard-recon-tool.md` — the `D:\DST\scripts\dashboard-recon` notebook utility that
+  automates report-vs-dashboard reconciliation (campaign-type config smc/azm/itn + vas/ors_zinc
+  addons, Summary-Report .xlsx export as primary dashboard source, Gemini-screenshot fallback
+  with confirm gate, deterministic severity + cause hints, DQ audit with flagged-record Excel
+  sheets, test-user detection). Read for any "report vs dashboard" recon run, and for the
+  encoded facts: SPAQ 1 = 3-11m / SPAQ 2 = 12-59m band mapping, status rows have NULL
+  productName, the pl Summary-export Ineligible-column discrepancy (202,702 vs 71k).
 - `dst/dst-team-and-hcm-modules.md` — what DST (DIGIT Success Team) is + the full HCM module surface.
+- `dst/partner-feedback-form.md` — the partner feedback form for the daily
+  campaign report (English + French, built via the Forms API). Read for: which
+  credentials can create a Google Form (API keys CANNOT; a service account
+  would own the form and cannot hand it over; OAuth Desktop or Apps Script are
+  the working routes), Forms API v1 limits, the francophone terminology map
+  (district / canton / CPS / MILDA / DC — never 'LGA' in a French deliverable),
+  and three PARTNER-FACING facts: data quality is never shared with partners,
+  partners do not receive the short Slack summary, and the report's proper name
+  is the Campaign Data Analysis Report.
+- `dst/partner-french-deliverables.md` — how to ship the French version of a
+  partner report + its two data workbooks, and the message that carries them.
+  Read BEFORE translating anything for a francophone tenant (tg/ch/Burundi/
+  Congo/Senegal) for: the terminology rule (use the pipeline's own vocabulary —
+  DC not DBC, canton not villages — and check what prior cycles shipped), fr-FR
+  localisation (U+202F thousands separator, `84,8 %`, `22/08/2026`, `06h40`,
+  never touch numeric cells), the python-docx hyperlink trap (`p.text` includes
+  hyperlink text but `p.runs` excludes it -> doubled strings), the four-item
+  openpyxl pre-check before renaming sheet tabs, and the partner-message
+  conventions (no figures, ships the FR feedback form, tag named readers not
+  `@channel`).
+- `dst/airflow-mdms-mode-and-test-matrix-2026-09-03.md` — MDMS mode fully live
+  (flat schema created + 5-point pre-create check, sync 4 verbs, Kafka->persister->
+  Azure-Postgres table closed), the cluster-mismatch credential saga (es-upgrade vs
+  backbone, all AWS-vs-Azure), a 15-case live edge/validation matrix, the ONE fix
+  (validate_row start<=end turns swapped-dates from silent no-op to visible reject),
+  verified-deliberate behaviours (orphan-on-date-edit, mdms mode-change re-fire,
+  tick batching), and the alert-copy restyle.
+- `dst/airflow-e2e-bringup-2026-09-01.md` — the layer-by-layer production
+  bring-up to the FIRST COMPLETE RUN (creds -> target -> ES DNS -> 401 -> done),
+  the live failure taxonomy (FAILURE vs DEGRADED vs benign), slot mechanics
+  (consumed run ids, both-mode, daily refire), Azure-vs-AWS unified-dev cluster
+  facts (ES = elasticsearch-master.backbone), the MDMS schemaCodes-plural
+  silently-ignored gotcha, the FLAT config entry shape + entry_row(), the
+  3-way persister alignment method, and the cycle_index "01"/"1" join hazard.
+- `dst/airflow-worker-vs-image-2026-09-01.md` — the gspread outage RCA, why
+  "use an image for library access" is a category error (image = execution
+  environment; only the AIRFLOW image can feed the worker), the settled no-pods
+  design on branch `dst-self-contained-dags`, the e122dc05 half-migration
+  incident, pod-boundary registry trap, git RM/clean/erase-commit traps, and
+  dev-deployment config facts (ES_INDEX_PREFIX null==delete, missing secrets).
+  Read WITH airflow-migration.md before any DST Airflow deployment work.
+- `dst/airflow-audit-2026-08-24.md` — the three-lens adversarial audit of
+  `D:\DST\automation` (data-engineering / senior-engineering / domain lenses, then
+  re-verification in source). READ BEFORE changing that codebase: it lists what was
+  fixed (observability and infrastructure only), the eight data-correctness defects
+  that are still OPEN and why they were deliberately not fixed, the config-reachability
+  defect class (documented-but-unreachable flags), the docs that describe subsystems
+  which do not exist, and the list of things VERIFIED CLEAN that must not be "fixed".
 - `dst/airflow-migration.md` — migrating the automation pipeline's orchestration
   (scheduler.py) to Apache Airflow: two architecture iterations (per-slot DAG
   factory, then a Scheduler+Processor split adopted from a real production
@@ -141,7 +221,7 @@ The stable core everything else builds on.
 - **Tenants** (DB schema + ES index prefix): `so`=Sokoto, `ba`=Bauchi, `oy`=Oyo, `na`=Nasarawa,
   `ko`=Kogi, `ab`=FCT/Abuja, `od`=Ondo, `kd`=Kaduna, `tg`=Togo, `cg`=Congo, `mz`=Mozambique,
   `pl`=Plateau, `ke`=Kebbi, `si`=Sierra Leone.
-- **Drugs/age bands:** SMC=SPAQ (SPAQ2 3-11m, SPAQ1 12-59m; treated 3-59m). AZM=Azithromycin
+- **Drugs/age bands:** SMC=SPAQ (**SPAQ1 = 3-11m, SPAQ2 = 12-59m**; treated 3-59m). AZM=Azithromycin
   (1-11m, 12-59m; treated 1-59m). Togo MRDN/SPAQ 0-3m/3-11m/12-59m.
 - **DIGIT writes return HTTP 202, not 200** — check `in (200, 202)`.
 - **egov-tracer `requestBody` is unquoted (not JSON)** — `json.loads()` fails silently; use regex.
@@ -167,6 +247,144 @@ The stable core everything else builds on.
 
 ## Changelog
 
+- 2026-09-10 — NEW `qa/stock-supply-chain-flow.md` (curated from stock-flow test memory,
+  2026-08-24 session). Problem: stock transfers silently offer no receiver when warehouse
+  users are stacked at one level — looks like missing master data. Approach: reasoned from
+  transfer resolution (receive leg needs a WAREHOUSE_MANAGER scoped to the receiving
+  boundary). Rule: exactly one WM per boundary level (country->state->LGA->ward->HF) +
+  DISTRIBUTOR at leaf; verified 6-user mhbase setup with boundary codes recorded (creds
+  redacted, file pointer only). Also folds in stock-side reporting facts (2-slice stock
+  scroll, warehousemanager activity sheet, Bauchi WM 1,073, D&E stock-report folders out of
+  null-audit scope).
+- 2026-09-08 — `dst/dss-dashboard-analytics-kpi.md` extended (HDDF-4931 session
+  2026-09-07/08). Problem: run the DSS stack locally + widen the KPI set with research;
+  misleading first reads: core-tree `yarn start` failure looked env-related (core tree
+  build is simply broken — use the health tree), the "mz login screen" looked like a
+  wrong .env (stale CRA start / global-config bake-in), and the ES 401 looked like
+  permissions (it's a wrong user/password for that cluster — rejected on 9200 AND
+  9201). Approach: live curl/endpoint probes (getDashboardConfig 200 in central mode,
+  getChartV2 NPEs on the ES 401), formula-level audit of ba PROD ChartApiConfig
+  (uncapped/silent PercentageComputedField, docs-vs-children value_count, open-ended
+  age bands, insights-always-0% on empty dateRefField), transformer downstream-model
+  code read for the full ES field surface (locationAccuracy, waybillNumber, RDT
+  counts in ServiceIndexV2, cycleNumber on every entity), and two web-research sweeps
+  (WHO/ACCESS-SMC/AMP literature + funder expectations: Gates/Global Fund PU-DR/PMI/
+  AMF-105%-PDM/GiveWell). Output: KPI catalog v2 (#16-43 — field-forensics incl.
+  impossible-visit-speed with the sibling/household-transition trap, present-but-idle,
+  projected completion, mop-up conversion, pipeline self-report), the honest 3-part
+  sync-lag design (offline app = same-day denominator unknowable), GPS-quality
+  formula, and the user's Tier-1 triage (coverage/funnel/timeliness declared covered;
+  build focus = operational tier). ES cred for the local port-forward still open.
+
+- 2026-09-03 — New `dst/dss-dashboard-analytics-kpi.md` (HDDF-4931 DSS KPI work,
+  2026-09-01..03). Problem: "validate existing KPIs and add meaningful ones" on the
+  central-prod DSS dashboard — misleading first reads everywhere: the frontend
+  appeared to lack an xtable renderer (actually two chartType vocabularies: master =
+  render type, ChartApiConfig = handler); colorRules looked unconsumed by the frontend
+  (actually resolved server-side into `card.color`); the validator's ACTION_ARITY
+  errors were its own over-reach (computeMultiPaths/xtable semantics); and dev
+  doseIndex 02 volume looked like day-2 dose capture (actually doseIndex==cycleIndex
+  1:1, so the WHO 3-daily-doses adherence KPI is INFEASIBLE from routine data).
+  Approach: three-layer verification — static fleet audit of all 14 tenant configs
+  with a purpose-built validator (`D:\DST\scripts\dss-dq-kpis\validate_chartapi.py`),
+  source reads of backend handlers + the health-dss frontend module, live kdev ES
+  field-coverage probes, and a live pl dashboard dump; KPI set anchored to the SMC
+  Alliance M&E Toolkit (WHO GMP/TDR). Findings: terms-aggs-without-size truncate
+  LGA/ward tables to ES's 10-bucket default fleet-wide (visible in prod); 115-221
+  queries/tenant ignore the date picker; campaign scoping fixed in ab/ba/pl/zf but
+  never fleet-rolled to 8 other tenants; live pl shows 329% coverage (multi-cycle
+  numerator vs single-cycle target), a half-dead DQ tab, and cross-tab FLW-count
+  contradictions. Also discovered pre-aggregated KPI indices
+  (stock_reconciliation_summary, stock_allocation_distribution) that make stock KPIs
+  plain aggs. Deliverables: fleet findings CSVs, six validator-passed DQ KPI
+  definitions (dq_kpis.json), WHO-anchored KPI shortlist + analytical (run-rate /
+  forecast / age-heaping / sync-lag) additions; recommendation doc pending the
+  user's own KPI list. Role note: DST recommends, another team implements.
+
+- 2026-08-26 — Correlation-id/tenantId propagation verified on mhbase (new
+  `qa/correlation-tenantid-propagation.md`) + unified-template and benchmark findings folded into
+  `qa/mhbase-console-perf-testing.md`. Problem: the platform report claims PASS on every hop, but the
+  first mhbase runs returned nothing for any correlation id and later runs showed mdms-v2 and idgen
+  silent — read initially as total propagation failure. Approach: paired every id search with a
+  control search on a known-existing record id (which exposed the first readings as a rolled-past
+  15-min window), switched to the MINT case so only one id exists, and used the container dropdown
+  with a CLEARED search box to separate "id not propagated" from "service ships no logs". Root
+  causes: (1) the gateway mints its OWN correlationId and forwards it in RequestInfo while the
+  client's x-correlation-id survives only in the first service's MDC — one request, two ids, seen
+  7/7 runs; (2) missing mdms-v2 hops were cache hits, proven by a cold-cache run that logged
+  perfectly and a warm-cache run of the same API that did not; (3) egov-idgen alone logs nothing on
+  5/5 successful calls — still OPEN pending the cleared-search container query. Also corrected two
+  of my own wrong readings: "mdms-v2 produces no logs" (it does) and treating the response header as
+  the pass criterion (the report only tests it in the mint case). Template side: Facility USAGE
+  col M is editable but Facility TYPE col J is immutable — "fixing" an invalid type triggers
+  IMMUTABLE_CELL_TAMPERED and fails the whole sheet, strictly worse than the 2 row-level errors it
+  replaced. New defect: facility create with no facilityType stores the `usage` value into
+  facilityType, 202, and the record is then un-correctable via the console (householdType family).
+  Benchmark claim-vs-reality captured: validation 113-180x inside target, 20K campaign +4 min over,
+  boundary ingestion 97 min vs 5 min, and 1,102 users lost with failures clustering in batch 400-499
+  at every tier.
+
+- 2026-08-24 — Transformer error-handling ROUND 2 on mhbase folded into
+  `qa/transformer-error-handling.md` + `context/gotchas.md`. Problem: the error index now holds 646
+  docs, which read as "TC-09 fixed, error handling works" — misleading, because doc-count > 0 says
+  nothing about whether the docs are usable or whether the silent-loss path was touched. Approach:
+  new ES-ONLY verifier (`Downloads\transformer_error_handling_test.py` v4 — Kafka only injects; all
+  verdicts from a pre-injection ES baseline vs a post-settle range query, plus a per-doc D1-D7
+  grader and an always-green control), run twice for reproducibility. Root causes/findings: TC-09
+  IS fixed; but **batch isolation is broken — `[valid, bad, valid]` loses 0/2 healthy siblings**
+  (NEW, HIGH, same class as persister EDGE-1); doc `_id` is a UUIDv3 content hash so identical
+  failures collapse to one doc and later runs OVERWRITE earlier evidence (proven on doc
+  `401501dc`); `errorMessage` is null on 19% of docs (NPE class) and embeds the payload on the rest,
+  making it unaggregatable; `payload/stackTrace.keyword` are `_ignored`; error docs carry no entity
+  identity so they cannot be correlated or filtered per tenant; TC-08 ghost mechanism and TC-12
+  tracer unchanged. **KB CORRECTION: TC-02 empty `{}` is NOT a silent no-op** — it produces an error
+  doc (`[]` is the genuine no-op). Also recorded two of our own harness bugs (v3 silently skipped
+  markerless cases; Kafka offset windows are unattributable on a shared global topic) and the ES
+  query recipes/gotchas for this index (missing-vs-exists over-count, `time_zone` on `now/d`,
+  `match_phrase` on dotted FQNs returns zero). Fix recommendation: emit exception class + root cause
+  as their own field, keep the payload out of the message, and give the doc id an identity component
+  — one change addresses D1, the cardinality problem and the overwrite together.
+
+
+- 2026-08-17 — New `dst/dashboard-recon-tool.md`: the `D:\DST\scripts\dashboard-recon`
+  notebook utility (built 2026-08-14 over one long session, uncommitted) that automates
+  the July report-vs-dashboard recon methodology. Problem: L2s eyeballed agg summaries
+  vs the DSS dashboard with no tolerance standard, no cause library, no record dumps.
+  Approach: deterministic core (normalize -> severity -> cause hints -> DQ + record
+  capture) with AI only at the screenshot-transcription edge (Gemini free tier, fallback
+  model chain, mandatory confirm gate). Root causes fixed along the way, each verified
+  live: browser FileUpload silently drops 150MB+ extracts at Jupyter's websocket cap
+  (replaced with an input\ drop-folder + Refresh); notebook reload of only recon.ui left
+  a stale engine (cell 2 now reloads all modules); SPAQ band ALIASES were mirror-swapped
+  vs the (correct) product_bands — the live pl run exposed it as a +-300% mirror pair;
+  a junk "Total: 47" tile silently overwrote a mapped total (conflicts now never
+  overwrite); IntText widgets uneditable in the user's frontend (review is textarea
+  `name = value` lines). Verified: pl run reproduced the July manual findings exactly
+  (7 SPAQ1 swaps, over-age ~ swap_spaq2, dupes 4.4%); ba statuses match dash exactly.
+  Discovered: the DSS dashboard exports `Summary Report.xlsx` (per-LGA, 17 cols) — now
+  the primary dashboard source; its Ineligible column sums 202,702 vs extract/tile ~71k
+  (open definitional question, ba-flow-saga family). User-driven design decisions:
+  campaign-TYPE config (smc/azm/itn + vas/ors_zinc addons), notebook-only (no CLI),
+  drop-folder inputs, manual fill-in form as default dashboard source, combined
+  file+screenshot mode (file authoritative, screenshot fills gaps + cross-checks),
+  test-user (test/uat/demo) record detection, DQ record sheets per check.
+- 2026-08-14 — `dst/chad-smc-beneficiary-id-rca.md`: two new sections from the 08-11/12 sessions.
+  (1) Remediation design for the 21,179 duplicates. Problem: which child keeps the ID and where
+  do replacements come from. Approach/decision: ledger-consistency keeper rule (pool-consumer
+  keeps; the rejected phone-generated leg is re-issued), phone-vs-phone exception (retire the
+  number if also dispatched to a third CDD), re-issue from a distinct-format server-side
+  remediation series (never the 87.8%-exhausted 7-digit space), child-1 record located via
+  deterministic enc-service ciphertext search (pilot 3975695 first), updates via individual
+  _update API only, and the gating PROGRAM question: physical cards vs digital-only (flag+alias
+  vs full re-issue). (2) Reporting artifacts & packaging lessons: the two-document pattern
+  (pre-read findings report + investigation-narrative RCA with real embedded evidence), the
+  no-placeholders-in-evidence-blocks rule (every number block must sum to the claimed total —
+  real daily breakdown 51,879...30 = 304,831), the three-number funnel (304,831 error docs ->
+  306,929 distinct IDs -> 21,179 duplicates) to preempt "300k vs 21k" pushback, and the
+  row-level Excel export recipe (openpyxl write_only, 300k+ rows; CSV-open-in-Excel =
+  PermissionError gotcha). Also corrected on 08-11: task-index beneficiaryId field EXISTS but is
+  ~1%-coverage sparse (3 of 21,179 pairs visible; ID 2911861 = first directly observed silent
+  collision) — task index unusable for duplicate detection; gotchas updated accordingly.
 - 2026-08-10 — `dst/chad-smc-beneficiary-id-rca.md`: added the duplicate cross-check section
   ("how many more like 3975695?"). Problem: team lead's pushback "there is an explicit validator
   to block this" + ask to quantify — misleading premise, since the 304,831 errors ARE the
@@ -204,6 +422,119 @@ The stable core everything else builds on.
   our controlled sync. Bonus findings: tracer index stalls for hours (not real-time), identifierId
   encrypted in the individual index, 3 idgen replicas (search all pods), interrupted first
   bootstrap bricks the app.
+- 2026-08-27 — New `dst/partner-feedback-form.md`: built and shipped a partner
+  feedback form for the daily campaign report, in English and French (two separate
+  live forms, 13 questions each, 11x5 usage grid). AUTH findings, all verified
+  against live API responses: an API key CANNOT create a form ('API keys are not
+  supported by this API' — a key identifies a project, not a principal); the
+  service account is the wrong tool even with the API enabled, because it would
+  OWN the form and ownership cannot be transferred to a person; OAuth Desktop
+  client + InstalledAppFlow works, and Apps Script (`FormApp.create()`, runs AS
+  the user) is simpler for one-offs. Note the SA and the OAuth client live in
+  DIFFERENT GCP projects, so the 'enable the API' link in the SA error names the
+  wrong project. `forms.body` carries no identity, so you cannot tell which
+  account owns a form you just created. Forms API v1 cannot set the confirmation
+  message or attach a response spreadsheet; a grid is a `questionGroupItem` with
+  required set PER ROW; delete items in DESCENDING index order or you remove the
+  wrong questions. PARTNER POLICY captured: data quality is NEVER shared with
+  partners (a draft question offering it was wrong), and partners do not get the
+  short Slack summary today. Francophone map recorded: district / canton / CPS /
+  MILDA / DC / formation sanitaire — 'LGA' in a French deliverable means it was
+  translated from the Nigeria template without review. REVISED same session to
+  3 parts / 12 questions / 8-row grid: the report's real name is the **Campaign
+  Data Analysis Report**; 'Programme Issues and Resolutions' is MISLEADING to
+  partners (it actually surfaces data issues - low-performing facilities, low CDD
+  sync); campaign list is SMC (not 'SMC / SPAQ' - SPAQ is the drug) + Polio +
+  **Co-delivery** (more than one medicine or product); LGA+facility and the three
+  CDD-sync rows each merged to one; exact-time question must ask the TIMEZONE;
+  Part 4 removed (losing the only priority-ranking question) with Name and
+  Organisation added as required. Rebuild-vs-patch rule: wholesale rebuild is
+  safe only BEFORE a form is shared, since it replaces every item id and breaks
+  existing responses' column mapping.
+- 2026-08-27 — New `dst/partner-french-deliverables.md`: translated the full Togo
+  CPS 2026 Cycle 3 cumulative Days 1-7 partner set into French (Word report + the
+  performance and CDD-sync workbooks), and recorded the method. TERMINOLOGY: the
+  first pass used DBC for CDD and Villages for Wards — both correct textbook
+  French, both WRONG here, because the francophone map in
+  `dst/partner-feedback-form.md` reflects what the pipeline emits (DC, canton) and
+  partners read an unfamiliar synonym as a DIFFERENT metric. Load that map BEFORE
+  translating, and check what prior cycles actually shipped. python-docx TRAP,
+  root-caused: `paragraph.text` INCLUDES hyperlink text but `paragraph.runs`
+  EXCLUDES it (hyperlink runs sit under `w:hyperlink`), so the usual "match
+  `p.text`, write into `runs[0]`, blank the rest" idiom produced doubled strings
+  ('CDD Sync Data ↗Données de synchronisation des DC ↗'); fix is to translate
+  `p.runs` and each `p.hyperlinks[i].runs` as SEPARATE groups, with the plain part
+  and the link text as separate dictionary keys. openpyxl: pre-check defined
+  names, CF rules, hyperlinks and cross-sheet formulas before renaming tabs (all
+  four empty for these two workbooks, so renaming was safe; freeze panes and
+  autofilter refs are sheet-local and survive). Only STRING cells need fr-FR
+  localisation — numeric cells carry a number format and render per the reader's
+  locale. Dictionary-driven translation chosen over machine translation because it
+  fails loudly: the untranslated-strings log should end up containing nothing but
+  district and facility proper nouns. Two SOURCE defects carried through verbatim
+  and reported rather than silently patched: report section 5.1b is
+  column-misaligned (values shift one column right under an 8-column header), and
+  an `ogou`/`Ogou` case collision makes the generator emit a sheet named `ogou1`.
+  PARTNER MESSAGE conventions confirmed: French, ships the FR feedback form
+  alongside the report, no figures and no DQ, and tag the named accountable
+  readers — never `@channel` (widening the tag on a routine cumulative on an
+  external channel reads as escalation; widen by NAME only).
+- 2026-09-03 — New `dst/airflow-mdms-mode-and-test-matrix-2026-09-03.md`: MDMS
+  mode proven end to end on Azure unified-dev; every credential/URL was an AWS
+  leftover wrong for Azure (backbone ns, not es-upgrade); 15-case matrix run live;
+  ONE genuine gap fixed (validate_row start<=end); target-fallback + mode-change
+  re-fire + orphan-on-date-edit documented as by-design; alerts restyled.
+  Uncommitted fixes under dags/ (git-sync, no rebuild). CONT (same doc): cumulative
+  mop-up double-fired (two run ids = campaign_key churn under MDMS mode, no retime
+  guard backstop) -> added slots._warn_on_duplicate_cumulative (observability only,
+  data-hygiene is the real fix); internal@11/partner@12 routing verified correct
+  end to end (no change); setup guide shipped as .docx not .md.
+- 2026-09-04 — Same doc, CONT: alert restyle to ONE builder (alerts.build_alert_blocks)
+  + severity colour bar via attachment (red COLOR_FAILED / amber COLOR_INCOMPLETE /
+  slate COLOR_INFO) across failure+incomplete+config-sync (Slack has no css; blocks
+  flatten on copy; live runs old committed code); live 20-case happy/sad/edge matrix on
+  the dev tab (+5min stagger, timing CSV); full HCM-structured docs set
+  (DST_Reports_Automation_Documentation.docx: 12-sec User Guide + 12-sec Tech Doc, deep
+  persister-yml / dst_report_metadata DDL+queries / add-a-deployment-group sections);
+  Google Docs Tabs are NOT API-creatable (write-into-existing only). All doc edits
+  uncommitted; bars invisible live until committed.
+- 2026-09-01 (later) — New `dst/airflow-e2e-bringup-2026-09-01.md`: first
+  complete production run achieved on Azure unified-dev (DEGRADED-and-complete
+  = pass); all three alert states demonstrated live; dst_config finalised
+  (backbone ES, embedded service account, secrets); MDMS gateway paths + the
+  plural-schemaCodes-ignored trap; mdms entry shape flattened (HCM-style) with
+  schema artifact in platform/; persister/producer/table verified 15==15==15
+  positionally. Gates: Padma table approval, MDMS schema create, kafka-python.
+- 2026-09-01 — New `dst/airflow-worker-vs-image-2026-09-01.md`: production
+  gspread outage traced to worker-runtime deps; two pod implementations built,
+  live-proven and retired; final design = all tasks in-worker + libraries baked
+  into the Airflow image (DevOps approved) + code moved under dags/ as
+  `dst_data_analysis_report/` (survives subPath git-sync — the old sys.path
+  bootstrap did not); e122dc05 half-migration killed the retime guard silently;
+  best-practice audit 12.5/15. dst_config on dev STILL needs ES_INDEX_PREFIX ""
+  (not null) + secrets + google_credentials_json.
+- 2026-08-24 — New `dst/airflow-audit-2026-08-24.md`: three independent reviewers
+  audited `D:\DST\automation` (branch `airflow`); 9 findings reached by 2+ lenses
+  independently. Dominant theme SILENT SUCCESS — ten paths survived partial failure
+  without telling anyone (zero records, zero targets, failed Slack post, swallowed
+  per-day ES error, truncated join, lost audit row, discarded Kafka event, skipped
+  partner post, unreachable Variable, overwritten degradation reason). FIXED
+  (observability/infra only, no number moves): Kafka delivery now confirmed via
+  `send().get()` — `flush()` raises only on timeout, so a rejected event returned True
+  and SKIPPED the Run Log fallback; Slack post retry + `FAILED_POSTS`; accumulating
+  `_degrade()`; zero-record/zero-target guards; guarded scroll cleanup; per-process
+  0600 credentials dir; unreadable Variable fatal under Airflow only; config errors
+  classified fail-fast; fleet-wide `max_consecutive_failed_dag_runs` kill switch
+  removed; `dagrun_timeout` raised above the retry budget; `finalize_run(retries=0)`;
+  and **sheet cells were being Jinja-rendered into `dag_run.conf`** — `{{ var.value.
+  dst_config }}` in a cell would render the service-account private key into the UI.
+  REVERTED on instruction (no core-logic/query changes) and still OPEN: terms-lookup
+  truncation, the missing `task.individualId` name leg, `cycle_index` no-op unless
+  `task_campaign_filter=TRUE`, two disagreeing `treated` definitions, DQ percentages
+  over 100%, daily-report targets of 0, soft-deleted staff, `precision_threshold`
+  drift. Also: `DST_DUP_MATRIX` env key (the CDD_ROLE defect class repeating), new
+  `DEPLOYMENT.md`, and SKILL.md + `reporting.md` had the SPAQ1/SPAQ2 labels SWAPPED
+  against the code and three recon memory files — corrected.
 - 2026-08-04 — New `dst/airflow-migration.md`: migrated `D:\DST\automation`'s
   orchestration (scheduler.py) to Apache Airflow, on branch `airflow-migration`
   (not yet committed). Built and live-tested two architecture iterations: a
@@ -310,3 +641,22 @@ The stable core everything else builds on.
   (POLIO project ad5d07be + productVariant PVAR-2026-06-10-000214 + "Gedero Koniso" locality
   NEWTEST00222_MO_11_04_01_01_02_GEDERO_KONUSO + <REDACTED-USER> single-session token) and the
   beneficiary-downsync verification + its empty-result gotchas (locality whitespace / wrong projectId).
+
+- 2026-08-19 — mhbase-hcm-dev round folded in. NEW `qa/mhbase-console-perf-testing.md` (env facts,
+  householdType root cause with full Problem->Approach->Fix, template rules, console benchmark
+  method, device-log QA). Appended: `qa/persister-regression.md` (mhbase 46-TC run 41P/2F; EDGE-2
+  confirmed + scope pinned to task-level loss w/ batch isolation intact; household delete no-op now
+  3 envs), `qa/validator-unbundle.md` (mhbase: unbundled AND orphans persist incl. ghost projectId -
+  ghost-record manufacturing; always-on validators hold; head-rule artifact), `qa/transformer-
+  error-handling.md` (standalone transformer_test_suite.py, marker-based, env-var creds),
+  `context/gotchas.md` #22-27 (cache false positive, cache-sourced back-fill, template rules,
+  Excel-open overwrite trap, identifiers[] extraction, single-session tokens).
+
+- 2026-08-20 — Transformer error-handling LIVE RUN on mhbase folded into `qa/transformer-error-handling.md`:
+  suite v2 (two-stage Kafka/ES verification + TC-14 control), env facts (error topic is GLOBAL
+  unprefixed `transformer-error-topic`; tracer is `-enriched`; consumers need List<Entity> array
+  payloads), and results — TC-08 ghost-record mechanism REPRODUCED ON DEMAND (valid task + ghost
+  beneficiary -> indexed with null links, no error emitted), TC-09 437 error records in Kafka but no
+  ES error index (indexer subscription gap; the July id fix IS present, 8/8 records have ids),
+  TC-04 blank errorMessage, TC-12 no tracer forwarding. `context/gotchas.md` #28-31 (asymmetric topic
+  prefixing, array payloads, always-inject-a-control, 404-vs-403 index semantics).

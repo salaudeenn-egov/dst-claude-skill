@@ -16,7 +16,8 @@ Pipeline flow:
 → `config.py` (computes DAY / GTE / LTE from `campaign_start`)
 → `analyze.py` (ES task scroll + individual/HH name lookup → `performance.xlsx`, 6 tabs)
   + `cdd_sync.py` (staff + sync agg → `cdd_sync.xlsx`)
-  + `report.py` (both xlsx + Claude API → Word report + progress chart PNG + Slack text)
+  + `report.py` (both xlsx + Groq LLM narrative (`openai/gpt-oss-120b` since 2026-08-17;
+    Claude/Ollama providers removed) → Word report + progress chart PNG + Slack text)
 → `notify.py` (Drive upload with ownership transfer to <REDACTED-EMAIL> + Slack post)
 
 `run.py` runs the whole thing once, manually.
@@ -72,7 +73,8 @@ Gotchas hit this cycle:
   Taraba's self-join returns blank AND ES casing is quirky (`Sunkani MCHC`, `Sabon Gari
   PHC hea 01`) — derive from the boundary code then override mismatches from ES
   (`boundaryHierarchyCode.healthFacility`→`boundaryHierarchy.healthFacility` agg).
-- **Claude auth = `ANTHROPIC_API_KEY`, not OAuth.** Claude Code / subscription OAuth
+- **[HISTORICAL — narrative is Groq-only since ~Jul 2026; see 2026-08-17 section]
+  Claude auth = `ANTHROPIC_API_KEY`, not OAuth.** Claude Code / subscription OAuth
   tokens 429 immediately (plan-capped) and expire (subscription refresh ~days; a
   `claude setup-token` OAuth is ~1yr but still rate-limited). API key is the reliable
   path for the unattended scheduler. `report.py` `_claude` uses `Anthropic(api_key=...)`.
@@ -114,7 +116,11 @@ joins DB target→ES by the `ADMIN2_TC…` boundary code.
   by **campaignNumber** (+ today's date window) — projectTypeId alone bleeds test data.
 - `cycle_index` left **blank** in the sheet: gspread `get_all_records()` numericises `"01"→1`,
   and `Data.additionalDetails.cycleIndex.keyword="1"` matches nothing (empty report). The daily
-  date window isolates the cycle, so blank is safe.
+  date window isolates the cycle, so blank is safe — BUT stragglers leak: cycle-01 docs with
+  device-clock taskDates inside the cycle-2 window count as cycle-2. Measure with
+  `cycleIndex="01" AND taskDates>=<cycle2 start>` before trusting blank. Cycle 2 (2026-08-17)
+  hit the typed-bare-`2` variant of this class — see "2026-08-17 — Groq migration +
+  cycle_index padding" section below.
 - Schema/tenant is `ch` (DB schema `ch.`, indices `ch-`) even though boundary codes read `ADMIN2_TC`.
 
 **Chad ES data shape (differs from Nigeria — drove the analyze.py generalisation):**
@@ -287,3 +293,319 @@ Caption line (`Total Campaign Target = Daily Target x N days`) is the DAILY form
 cumulative runs (there the denominator is the CSV overall target). Daily and cumulative charts agree only when
 `max_daily_target * campaign_days == overall_target` (per-day target files sum to the CSV total). Offer to make
 the caption mode-aware if exactness matters.
+
+## 2026-08-17 — Groq model migration + cycle_index padding (Chad Cycle 2 zero-doc incident)
+
+### Narrative LLM: llama-3.3-70b-versatile decommissioned → openai/gpt-oss-120b
+
+**Problem.** Groq decommissioned `llama-3.3-70b-versatile` (2026-08-16) — the pipeline's only
+narrative model (`report.py _claude()`, Groq-only; Claude/Ollama providers were removed).
+It still answered during a grace window, so nothing looked broken yet.
+
+**Approach.** Listed the key's models via `GET /openai/v1/models`, then smoke-tested both
+recommended replacements with the pipeline's exact call shape (`max_tokens=300..400`).
+
+**Findings / root causes.**
+- `qwen/qwen3.6-27b` is UNUSABLE as-is: dumps its `<think>` reasoning into `message.content`
+  and burns the whole token cap (`finish_reason=length`, no answer).
+- `openai/gpt-oss-120b` works, but it is a REASONING model: hidden reasoning tokens count
+  against `max_tokens`, so small caps truncate or empty the visible output. This is what the
+  Taraba Day-6 "hit max_tokens=400" warning was.
+- gpt-oss emits narrow no-break spaces (U+202F) before `%` ("88 %") — looks broken in Word.
+
+**Fix (all in `pipeline/report.py`, covers report_itn.py which imports `_claude`).**
+- Default + `.env`/`.env.togo`: `GROQ_MODEL=openai/gpt-oss-120b`.
+- In `_claude()`: if `"gpt-oss" in model` → add `"reasoning_effort": "low"` (Groq accepts it)
+  and pad the request cap by +500; callers keep passing visible-output budgets (400/600/1500).
+- Sanitize output: U+202F/U+00A0 → space, `" %"` → `"%"`. (U+2019 curly apostrophe is fine.)
+- Verified end-to-end: `finish_reason=stop`, clean prose at the 400-cap Slack call.
+
+**Deployment trap:** every server `.env` (e.g. `/home/jovyan/dst/automation`) sets
+`GROQ_MODEL=llama-3.3-70b-versatile`, which OVERRIDES the new code default — servers need the
+one-line `.env` edit or reports degrade to `[Narrative not generated — Groq error]`.
+
+**Free-tier limits for gpt-oss-120b on this key** (from `x-ratelimit-*` headers): 1,000
+requests/day, 8,000 tokens/minute. ~3 calls per report slot → requests are a non-issue; a very
+large issues prompt could 429 on TPM (non-fatal — placeholder text, report still builds).
+
+### cycle_index `2` vs `"02"` — Chad Cycle 2 Day 1 returned 0 task docs
+
+**Problem.** Chad Cycle 2 Day 1 (2026-08-17, 06:03 UTC run): `task-treatment: ~0 docs`,
+`task-nonadmin: ~0 docs`, report saved with 0 facilities — while the staff query worked
+(3,796 docs). Misleading first read: "06:03 UTC = 07:03 WAT, data hasn't synced yet" —
+partially true but NOT the cause; even with data present the query matched nothing.
+
+**Approach.** Agg on `Data.additionalDetails.cycleIndex.keyword` scoped to the campaignNumber:
+buckets `"01"` 3.69M / `"02"` 1,276 (growing live) → matching docs EXIST; then per-filter
+elimination (dates OK: 433+ docs taskDates=2026-08-17; statuses OK: SUCCESS+VISITED).
+Only remaining difference: the filter VALUE.
+
+**Root cause.** The sheet cell holds bare `2`. `numericise_ignore=["all"]` (the earlier
+leading-zero fix) only PRESERVES what was typed — it cannot invent the zero. So the query sent
+`cycleIndex.keyword="2"`; ES stores zero-padded `"02"`; `term` on keyword is exact → 0.
+(Contrast gotcha: doseIndex is "1"/"2"/"3" UNpadded; cycleIndex is "01"/"02" PADDED.)
+
+**Fix / verify.** `config.py _pad_cycle()`: strip, drop trailing `.0`, `zfill(2)` if
+digit-only (`2`/`"2"`/`2.0`/`" 2 "` → `"02"`; `"10"`/non-numeric pass through) — tested.
+Short-term without deploy: type `'02` (text) in the cell, or clear it (blank = date-window
+isolation, see Chad scoping gotchas for the straggler-leak caveat). Scheduler re-reads the
+sheet hourly — no restart needed.
+
+**Side finding:** ~880 cycle-02 docs carry taskDates BEFORE the official start
+(Jul 30 + Aug 10–16, Aug 16 alone = 232) — either early field starts (then campaign_start in
+the sheet is wrong and those never enter any daily window) or client-clock drift. Confirm with
+the campaign team before Day 2.
+
+**ES query-authoring gotcha (hit while diagnosing):** `terms` agg with a string
+`"missing": "SENTINEL"` on a DATE-mapped field (`Data.taskDates`) throws
+`parse_exception ... failed to parse date field [SENTINEL]` and fails ALL shards. Use a
+separate `"missing": {"field": ...}` agg + `"format": "yyyy-MM-dd"` on the terms agg instead.
+
+
+---
+
+## Pipeline modularization (2026-08-14, committed as `2ea7edc` on branch `airflow`)
+
+The pipeline was restructured for the Airflow migration (business logic
+UNCHANGED — verified by pyflakes zero-undefined-names, import + execution
+smoke tests, and a live E2E run). run.py/scheduler.py's run(cfg) seams are
+frozen; both keep working.
+
+**pipeline/core/ — shared plumbing extracted from copy-paste:**
+- es.py: scroll_all, scroll_batches, composite_agg (were duplicated across
+  analyze/cdd_sync/ITN modules)
+- excel.py: style_cell, style_sync_cell, both fill palettes, FLAG_COLOR
+  (the two old _HDR_FILLs had DIFFERENT colors — now HDR_FILL vs SYNC_HDR_FILL)
+- word.py: hdr, dat, add_heading, add_para, hyperlinks, borders,
+  two_col_table, cov_band (report_itn used to import these by _underscore name
+  from report.py)
+- llm.py: generate_narrative — the old `_claude` was MISNAMED, it is a GROQ
+  chat call (GROQ_API_KEY/GROQ_MODEL/GROQ_BASE_URL)
+- checkpoint.py: save/load_checkpoint -> {out_dir}/checkpoints/{stage}_dayN.json
+- drive.py: upload_raw/download_raw/find_or_create_folder — raw (NO
+  conversion), overwrite-by-update (the SA cannot delete), and NO
+  anyone-with-link permission (checkpoints carry beneficiary names). notify's
+  report uploads still convert+link-share as before.
+
+**Stage structure — collect -> checkpoint -> render:**
+analyze and cdd_sync are split: collect(cfg) = ALL ES I/O -> plain data;
+save_checkpoint; render(cfg, ...) = pure -> Excel. `rerun_from_checkpoint(cfg)`
+rebuilds an Excel OFFLINE (no ES, no creds) — the checkpoint is frozen
+evidence of what ES said at run time (a later re-query cannot reproduce a
+morning's numbers; cf. the Borno mid-sync-snapshot argument). report.run is
+composed of named stages: _load_inputs -> _build_trajectory ->
+_publish_excels (Drive uploads finally ISOLATED from doc building) ->
+_generate_narratives (all LLM calls in one place) -> _render_docs. Checkpoints
+also upload to the campaign's Drive `Day N/temp/` folder at the end of every
+run (even failed ones) via notify.upload_checkpoints — so a dead k8s pod
+stays debuggable: notify.download_checkpoint(cfg, stage) then
+rerun_from_checkpoint.
+
+**Dead code deleted** (the run loop had inlined them long ago):
+analyze._fetch_task_docs, analyze._aggregate, analyze._build_hh_head_name_map.
+
+**Self-explanatory renames** (old -> new, the cryptic ones):
+_fetch_pb_to_individual -> _map_beneficiary_refs_to_individual_ids;
+_fetch_hh_member_map -> _map_individual_ids_to_household_ids;
+_fetch_hh_head_map -> _map_household_ids_to_head_ids;
+_finalize_fac_data -> _build_facility_rows; _band -> _coverage_band;
+_write_tab -> _write_facility_tab; _ts_to_date -> _epoch_ms_to_date;
+_load_staff_admin/_project -> _load_staff_by_campaign/_by_project_type;
+_load_syncs_admin/_project -> _load_sync_dates_by_username/_by_user_id;
+_build_rows -> _build_cdd_rows; _write_df -> _write_dataframe_tab;
+_load_perf -> _load_performance_excel; _make_partner_perf_xlsx ->
+_build_partner_performance_excel; _load_days_from_es/_load_all_days_perf ->
+_load_daily_totals_from_es/_from_files; _build_doc -> _build_report_doc;
+_claude -> generate_narrative; _claude_issues -> _generate_issues.
+Domain vocabulary (DQ, CDD, LGA) deliberately kept.
+
+**New shared modules:**
+- pipeline/schedule_utils.py: compute_trigger_slots(row) — the
+  both/internal/partner time dedup, used by BOTH scheduler.py and the Airflow
+  scheduler DAG so they cannot drift.
+- pipeline/run_log.py: append_run_log (the Run Log tab writer run.py delegates
+  to; 10-column format incl. Mode) + fetch_today_runs (read-back for the
+  Airflow retime guard). No database anywhere.
+- pipeline/mdms.py: the sheet->MDMS mirror client (plan_sync pure diff +
+  apply_sync HTTP) — see airflow-migration.md v3 for the full design.
+- pipeline/README.md: developer guide (module map, stage structure, offline
+  debugging recipe, name-resolution chain, conventions).
+
+**Gotcha for anyone re-reading old notes:** the numericise_ignore=["all"] fix
+in config.get_active_rows is NOW COMMITTED (2ea7edc) after having been lost
+once as an uncommitted edit.
+
+
+---
+
+## Report-correctness overhaul (2026-08-18..19, ITN branch) — the Chad C2 "118.5% coverage" incident
+
+Trigger: Chad SMC 2026 Cycle 2 Day 1 Slack post read "coverage 118.5%, 71,477
+records vs daily target 59,645"; Ranjani challenged it (how can coverage exceed
+100% when identification and administration happen together?). Shaowni asked
+for a target relook + regeneration.
+
+### 1. Dynamic-denominator bug (the root cause of 118.5%)
+
+Problem: Day 1 daily target 59,645, Day 2 83,340 — same unchanged CSV.
+Misleading first read: stale Cycle-2 targets / wrong CSV. Approach: summed the
+CSV (495 facilities, 1,139,200 = exactly the C1 total, unchanged) and read
+_load_targets + run(): the banner target = sum of daily targets over rows in
+fac_data — and fac_data only contains facilities PRESENT IN THAT DAY'S ES
+DATA. Root cause: the denominator silently shrank to the reporting subset
+(31% of the book on D1, 44% on D2). True daily = 1,139,200/6 = 189,867; real
+coverage D1 37.2%, D2 25.0%, cumulative ~31% — consistent with the 11-21%
+CDD sync rate. Fix: _finalize_fac_data (SPAQ, facility grain) and
+_finalize_lga_rows (ITN, LGA grain) now build the UNION of reporting rows and
+the target book — silent target-book entries become explicit zero rows, so
+the Daily Target is STANDARD (full campaign target / days) irrespective of
+which facilities synced.
+
+### 2. NOT REPORTED status band (user-specified semantics)
+
+NOT REPORTED = target present but no data synced. New band: records == 0 ->
+"NOT REPORTED" in both _band()s (safe: any ES-seen facility has >=1 record;
+only zero rows can be 0). BANDS/FLAG_COLOR/STATUS_COLOR/COV_FILL extended;
+the Excel gains a dedicated NOT REPORTED tab (the supervisors' chase list).
+LOW ACTIVITY reverts to meaning only "reported <10 records". SMC zero rows
+show LGA "—" (dash): ch_target.csv has NO lga column, nothing to claim
+— a sibling-boundary-code inference was built then REVERTED at user request
+(clean alternative if ever wanted: regenerate the CSV with an lga column via
+build_ch_target's DB join). ITN zero rows DO carry the real LGA name (targets
+are keyed by LGA boundary code; _lga_name_from_code strips the numeric path).
+
+### 3. Display/narrative guard (defect found by user's instinct)
+
+Problem: "I feel NOT REPORTED in the report causes issues." Verified real:
+report.py's conclusion prompt picks worst_lga = min(lga_d, by coverage) —
+the "—" pseudo-group is permanently 0% and would win EVERY day; the issues
+prompt counted ~250 silent facilities as "low activity". Fix: run() builds
+lga_display (lga_d minus the "—" group) for the LGA/DQ tables, issues +
+conclusion prompts and lgas_total, while g/_grand_totals stays computed from
+the FULL set (the standard-target denominator). ITN deliberately NOT filtered:
+its silent LGAs have real names, so "worst LGA X at 0%" is true + actionable.
+
+### 4. Cumulative-first presentation (user-specified formula)
+
+Slack message coverage is now CUMULATIVE ONLY: Cumulative Coverage % =
+Cumulative Treated (Days 1-N) / Total Campaign Target x 100. Prompt exposes no
+daily target/coverage and instructs the LLM never to mention one. Word report
+Section 1 reordered: cumulative block first (new "Total Campaign Target" row;
+cumulative coverage REBASED to the total campaign target — it previously
+divided by target-to-date, which would have contradicted Slack), daily rows
+kept second (user: keep, don't remove). ITN ported identically for all three
+metrics (households/population/nets). ITN divisor = REAL campaign length
+(campaign_end - campaign_start + 1), NOT cfg[campaign_days] — that is how
+analyze_itn divides; SPAQ uses cfg[campaign_days] (sheet column, default 4
+fallback = a silent trap if the cell is blank on a 6-day campaign).
+
+### 5. Formula notes (self-documenting basis)
+
+Excel banner: "Daily Target (Day N): X (= Campaign Target / N campaign days;
+all targets/coverage in this sheet are vs the DAILY target)". Word Section 3
+grey note with the live worked formula. Both computed from cfg, nothing
+hardcoded; daily runs only (cumulative mode measures the full target).
+
+### 6. Duplicates fix (committed ae087eb) — redose/no-longer-duplicate
+
+Problem: treated+redose (ADMINISTRATION_SUCCESS + VISITED), absent->treated,
+refused->treated each counted as 1 duplicate — the 4-field key
+(hh_head|child|ward|age) carries no status/date and ran over EVERY record.
+Chad D1's "1,193 duplicates" included legitimate redoses. Fix: dedup runs only
+inside is_treated (both _aggregate_batch and legacy _aggregate) — metric now
+means "same child TREATED twice" (true sync/retry duplicates); genuine
+double-treatment still caught. Expect a step-DOWN in reported duplicates
+across the change date. Remaining known: dual-product tenants (Kebbi
+SPAQ+ORS) still collide (needs the productName-filter fix, open item).
+
+### 7. Operational learnings from the incident
+
+- ES SNAPSHOT GROWTH: Chad D1 treated read 70,669 on the evening run and
+  98,758 next morning for the SAME taskDates window — late syncs (CDD sync
+  20.8% -> 28.1%). Same class as the Borno mid-sync-snapshot lesson; expect
+  early-campaign numbers to keep growing for days.
+- CROSS-CYCLE NARRATIVE ARTIFACT: both Chad SMC rows share out_dir
+  output/chad, so _read_previous_report compared Cycle 2 Day 1 against CYCLE
+  1's last report ("a notable rise from 28.9%..."). Give each cycle its own
+  out_dir to keep trend text within-cycle.
+- 188,235 vs expected 189,867 daily target (~9.8k missing): suspected
+  duplicate facility_name rows in ch_target.csv collapsing in the name-keyed
+  tmap (last wins). UNVERIFIED — check df.facility_name.duplicated().
+- Day-1 regeneration bypass: bash one-liner
+  `TEST_EXTRACT_DATE=2026-08-17 python run.py --state Chad` (env var scoped to
+  the command; the box is bash, NOT PowerShell). Row must be active=TRUE.
+- The sheet legitimately holds MULTIPLE rows per state (one per campaign/
+  cycle; Chad has three). Gotchas: `run.py --state X` matches all same-named
+  rows (inactive ones skip harmlessly); scheduler.py's _run_campaign refreshes
+  the row by FIRST state_name match — LATENT BUG if two same-named rows are
+  ever active simultaneously (fix would match on campaign_number); the Chad
+  ITN row's out_dir points at output/oy (copy-paste error, fix before
+  reactivating).
+- PARTIAL-DEPLOY INCIDENT (again): a box ran new analyze.py with old config.py
+  -> every PB batch died on KeyError 'ES_INDEX_PB', silently swallowed by the
+  per-batch except -> all names empty, Missing-Name DQ ~100%, duplicates 0.
+  Deploy pipeline/ as a whole, never single files. Hardening still open: let
+  KeyError propagate out of the batch lookups instead of warn-and-continue.
+- PROD DEPLOY COPY: Downloads/testitn/testitn/test is the pulled prod working
+  dir (own git repo; .gitignore covers .env/credential.json — verified, and
+  their committed REPORTS .env-style files were checked clean). All four
+  changed files synced byte-identical. INTENTIONAL divergences: prod
+  config.py has DUP_MATRIX_DEFAULT="TRUE" (never overwrite blindly);
+  cdd_sync_itn.py in prod is BEHIND repo commit 0f40542 (per-day sync matrix)
+  — sync before the next ITN campaign.
+
+State as of 2026-08-19: analyze.py, report.py, analyze_itn.py, report_itn.py
+UNCOMMITTED on ITN (+210/-48) and mirrored in the prod copy; dedup fix
+committed (ae087eb); regenerate a Chad report and eyeball before committing
+the set.
+
+
+### 8. Fleet rollout of the fix set (2026-08-19..20) — deployment copies + divergence map
+
+The fix set (standard target, NOT REPORTED, dedup-treated-only, cumulative-first,
+formula notes, numericise, _pad_cycle) now lives in FOUR working copies, all
+byte-identical to the ITN repo except two intentional divergences:
+
+| Copy | Box | Divergence to PRESERVE on any future sync |
+|---|---|---|
+| D:\DST\automation (ITN branch) | source of truth | — (5 files still UNCOMMITTED as of 2026-08-20) |
+| Downloads\testitn\testitn\test | central/Chad prod | config.py DUP_MATRIX_DEFAULT="TRUE"; cdd_sync_itn.py was BEHIND 0f40542 |
+| Downloads\automation\automation | Taraba (tab taraba) | none — full wholesale sync was safe (tenant-prefixed, role DISTRIBUTOR) |
+| Downloads\togo_automation (1)\automation | Togo (tab togo) | cdd_sync.py role: every "DISTRIBUTOR" swapped to "COMMUNITY_DISTRIBUTOR" (9 sites in current code, was 7 in the old); .env has ES_INDEX_PREFIX= present-and-empty — both load-bearing |
+
+Method that avoids the partial-deploy trap: sync the WHOLE pipeline/ + run.py +
+scheduler.py, then re-apply the copy's known divergences — never cherry-pick
+single fixed files onto an older base (Taraba's copy pre-dated the PB chain;
+copying only analyze.py would have recreated the ES_INDEX_PB KeyError crash).
+Wholesale-copy safety check first: diff the copy's cdd_sync.py against repo-
+with-role-swapped to prove the role is its ONLY local intent (Togo's was —
+the rest of its drift was just an older version). cdd_sync_itn.py's
+DISTRIBUTOR_REGISTRAR is Chad-ITN's own constant — never swap that file.
+
+**numericise_ignore LOST A THIRD TIME:** the fix existed only on the airflow
+branch; the ITN branch (and hence every deployment copy) never had it. Found
+by marker-verification during the Taraba sync (— always grep the markers
+after a sync: "NOT REPORTED", "dedup TREATED records only",
+"Cumulative coverage (Days 1-", "numericise_ignore", "_pad_cycle"). Re-applied
+to ITN config.py + all copies (testitn surgically, preserving DUP_MATRIX).
+
+**Cumulative-mode impact of the fix set** (asked and verified): standard-target
+union applies with divisor=1 — Overall Campaign Target becomes the full book
+and NOT REPORTED in a cumulative run means "never reported in the whole
+campaign" (a useful end-of-campaign list); display filtering + dedup apply the
+same way; the cumulative Section-1 layout and banner were already
+overall-target-first and are untouched; formula notes correctly absent.
+A --cumulative run ending on Day 1 reads ~single-digit coverage vs the FULL
+undivided target — mathematically right, easy to misread; for a corrected
+daily Day-1 report use TEST_EXTRACT_DATE instead.
+
+**JupyterHub env-repair sequence** (Taraba box, aarch64, Python 3.11): compiled
+extensions from a rebuilt environment fail one-by-one in import order while
+pure-Python packages work. run.py's bootstrap only installs MISSING packages,
+so present-but-broken ones crash forever. Fix in one pass:
+`pip install --user --force-reinstall --no-cache-dir numpy pandas lxml pillow matplotlib`
+(numpy/pandas = the first crash; lxml = python-docx's etree import; pillow +
+matplotlib = the chart, next in line). --no-cache-dir matters — pip re-serves
+the same broken cached wheel otherwise. Verify with one import line before
+rerunning. Typo trap seen live: `--cumlative` — argparse only surfaces it
+after imports succeed.

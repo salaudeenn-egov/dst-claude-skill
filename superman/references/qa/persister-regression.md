@@ -71,3 +71,22 @@ Confirms the offline-sync path returns registration + distribution for a boundar
 ## NOT testable on unified-dev (needs perf-lab / prod-spec DB)
 Throughput/lag/stress (2-3k -> 20k/s), pgbench, PostgreSQL parameter tuning, DB-down recovery (DbHealthMonitor), multi-instance rebalancing. Individual/Stock create intermittently blocked by egov-user (USER_SERVICE_ERROR / USER_SEARCH_ERROR) — environment, exclude as non-defect. Stock create also needs a project-facility mapping (absent on dev).
 Scripts + Excel builder live in the session scratchpad; results doc: `Downloads\Persister-Bulk-Regression-Results.xlsx`.
+
+## mhbase regression run (2026-08-18/19) - suite re-run on a second env
+Full regression (Validation category removed = pure persister testing; 46 TCs incl. Referral/
+SideEffect/Stock/StockReconciliation CRUD never covered before): 41 PASS / 2 FAIL / 2 BLOCKED / 1 WARN.
+Prereq: ALL household payloads need householdType (see qa/mhbase-console-perf-testing.md - the
+root cause that mimicked a total write-path outage for 2 days).
+- **PASS highlights:** every entity update applies (rowVersion+1) incl. household - EDGE-8 no-op and
+  EDGE-9 500 do NOT exist on this build; cross-call dup -> sync 400 + exactly 1 row; peaks
+  household x100 + task x50 = 100%; CDD-sync wave 40/40; empty bulk -> clean 400; unknown extra
+  fields ignored safely; Referral + SideEffect create/persist against committed parents.
+- **EDGE-2 CONFIRMED + SCOPE PINNED (fresh 3-way retest w/ controls):** duplicate resource
+  clientReferenceId within ONE task -> that whole task silently lost (202, 0 in DB, resource NOT
+  deduped, no error surfaced). Batch IS isolated (good tasks in the same bulk persist) and
+  duplicate TASK clientRef is handled (dedup to 1 row) - loss is exactly task-level. 2nd env, still open.
+- **Household _delete no-op = 3rd environment** (mc-nigeria-uat, mhbase suite MH-25, unbundle
+  UNB-003): 202 but isDeleted never flips. Systemic, needs its own ticket.
+- Mixed-tenant bulk -> 401 kills whole call incl. valid record (EDGE-3 class, consistent everywhere).
+- HFReferral untestable: bulk key rejected (NotNull.HFReferralBulkRequest.hfReferrals), single
+  202-but-0-persist - need the real payload contract before classifying.

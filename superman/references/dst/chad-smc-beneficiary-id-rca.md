@@ -92,8 +92,9 @@ device log -> DB absence -> prod ERROR log.
 
 ## Duplicate cross-check — "how many more like 3975695?" (2026-08-10)
 
-**Problem.** Team lead's response to the 3975695 case: "there is an explicit validator in idgen
-to block this — check how many more entries are similar; I will assign someone to verify."
+**Problem.** Kaviyarasan P's response to the 3975695 case (in the Slack thread with Sathish P /
+Sathish Ramadurai / nikhilesh equidhi): "there is an explicit validator in idgen to block this —
+check how many more entries are similar; I will assign someone to verify."
 Misleading premise to rebut first: the validator DID fire — the 304,831 INVALID_ID errors ARE
 the validator. It blocks only the ledger write, not the registration (child persists with the
 generated ID), and rejected numbers are invisible to the pool generator/dispatcher, which
@@ -135,6 +136,60 @@ format that landed well: Excel with humanized sheet names (Summary / "Same ID Us
 "ID Sent To Another Device") + per-row usernames AND uuids + all three timestamps, plus the
 script for independent re-run. Keep message numbers window-consistent with the attached file —
 the verifier's first act is counting rows.
+
+## Remediation design for the 21,179 duplicates (2026-08-12, proposed)
+
+**Problem.** "How do we fix the 21k — and based on what should the new ID be generated?" Two real
+children share each ID; a keeper rule and a re-issue source are needed before any script.
+
+**Keeper rule (ledger-consistency principle):** the POOL-CONSUMER (child 2) keeps the ID — the
+ledger already records it as legitimately dispatched+ASSIGNED to that CDD; child 1's use was
+REJECTED by the validator, so the ID was never validly theirs. Don't fight the ledger with
+"first use wins" — that would require rewriting id_pool too. Exception (the 9,961 phone-vs-phone
+pairs, neither leg legitimate): if the number was ALSO dispatched to a third CDD (e.g. 6387648 ->
+adescu2), retire the number entirely and re-issue BOTH children; else earlier-synced keeps.
+
+**Re-issue source:** NEVER the 7-digit space (87.8% exhausted; the colliding format). A dedicated
+server-side remediation series from idgen in a visibly distinct format (prefix / 8+ digits),
+dispatched to a system remediation user so the ledger records it — align with the format-change
+fix so remediation IDs are collision-proof and auditable as re-issued.
+
+**Finding child 1's individual record (the practical blocker):** identifierId is encrypted, BUT
+enc-service encryption is deterministic for searchable fields -> encrypt the plaintext ID via
+enc-service and search individuals by ciphertext; disambiguate the two hits with the detail
+sheet's users+timestamps (child 1 = rejecting CDD near first_error_ts; child 2 = consuming CDD
+near consumption time). PILOT on one ID (3975695) to confirm determinism before scripting.
+
+**Execution:** freeze first (quarantine/exclusion), map records from the detail sheet, update
+child 1 via the individual `_update` API ONLY (keeps DB+ES+encryption consistent; never direct
+DB edits), checkpointed batch with a 10-ID dry run, log old->new->individual mapping in a
+remediation audit table, verify by re-running the cross-check (expect zero) + encrypted-search
+spot checks.
+
+**Program decision that gates everything:** were beneficiary IDs written on PHYSICAL CARDS? If
+yes, digital re-issue breaks card->record lookup next cycle — cheaper alternative is keep both
+records + duplicate-flag/alias on child 1 and resolve at next-cycle contact. If digital-only,
+full re-issue before the next cycle. Put this question to the program team, not engineering.
+
+## Reporting artifacts & packaging lessons (2026-08-12)
+
+- Two-document pattern that worked: (1) findings report = polished pre-read (exec summary,
+  method table, classification table, recommendations); (2) investigation-narrative RCA =
+  submission-grade, chronological story ("why does the tracer have so many errors" -> each
+  investigation step) with REAL evidence embedded in shaded monospace blocks (code excerpts with
+  commit msgs, device-log fingerprints, verbatim quota response, pod-log smoking gun, tracer-doc
+  excerpt, pool-coverage math). Builders: build_chad_smc_beneficiary_id_findings.py +
+  build_chad_smc_rca_investigation_report.py (Downloads).
+- **Never put shape placeholders ("rising/peak/falling") in an evidence block** — the user caught
+  it immediately. Every number block must be real values that SUM to the claimed total
+  (daily INVALID_ID: 51,879/66,876/87,226/41,468/29,370/20,011/2,880/2,675/2,416/30 = 304,831
+  exactly; source sheet Daily_by_ErrorCode of ch_smc_tracer_rca_20260720_to_date.xlsx).
+- Keep the three-number funnel straight when presenting: 304,831 ERROR DOCS -> 306,929 DISTINCT
+  rejected IDs (dedup + pre/post-window tails) -> 21,179 CONFIRMED DUPLICATES. Conflating them
+  invites "is this real? 300k vs 21k?" pushback.
+- Row-level evidence export: ch_smc_invalid_id_errors_rowlevel.xlsx (304,831 rows: docId,
+  timestamp, extracted ID, CDD username/uuid, errorMessage) — openpyxl write_only mode handles
+  300k+ rows fine. Gotcha: a CSV open in Excel gives PermissionError on read — retry after close.
 
 ## Additional durable findings
 - **egov-tracer-error-details is NOT real-time**: stalled 5+ hours during testing (newest doc

@@ -58,6 +58,7 @@ never present a single run or a cache hit as proof.
 - `~/.claude/skills/superman/references/qa/transformer-error-handling.md` — HDDF-5226 12 test cases, setup, defects (TC-08/09/10).
 - `~/.claude/skills/superman/references/qa/transformer-scenario-testing.md` — end-to-end happy/sad/exception/edge coverage, evidence-trail triage.
 - `~/.claude/skills/superman/references/qa/persister-regression.md` — persister/bulk regression: method, verified behaviours, evidence-backed unhandled edge cases.
+- `~/.claude/skills/superman/references/qa/mhbase-console-perf-testing.md` — mhbase env + console perf benchmarking: householdType silent-drop root cause, template rules, benchmark tiers/mapping, device-log QA.
 - `~/.claude/skills/superman/references/qa/chad-upload-error-from-app.md` — live-device app-upload QA method (adb + flutter logcat).
 
 ## Lane 4 — Code review

@@ -50,6 +50,7 @@ Full playbook: references/verification-methodology.md.
 | references/validator-unbundle.md | Testing the cross-entity existence validator unbundling: fix under test, feature flags, U/S/B/D/F/E test series and outcomes, Python harness + Postman collection, null-relation-link findings, the 5 reconciliation relations, persister test plan. |
 | references/transformer-error-handling.md | Transformer error-handling QA (HDDF-5226): the 12 test cases, Kafka+ES injection setup, the pass/fail matrix, the three High defects, JUnit flow harness, the three result docs. |
 | references/chad-upload-error-from-app.md | Chad ITN upload-error-from-app live-device QA: mobile app `dumpError()`/retry-threshold code path, the result matrix (total-outage vs mid-transfer-cutoff signatures), the two confirmed false-positive `UPLOAD_ERROR_FROM_APP` cases (exact IDs/timestamps), gating implication for the Gap B/E tracer counts. |
+| references/stock-supply-chain-flow.md | Testing or setting up the stock/supply-chain flow: the one-WAREHOUSE_MANAGER-per-boundary-level rule (country->state->LGA->ward->HF + DISTRIBUTOR at leaf), the verified mhbase 6-user setup with boundary codes, console conventions that interact with stock, and stock on the reporting side (ES slices, warehousemanager activity sheet, D&E stock-report folders). |
 
 ## Problem -> Approach -> Solution playbook
 

@@ -112,8 +112,13 @@ positive. See the hcm-qa skill's verification-methodology for the full protocol.
 
 - **identifierId is ENCRYPTED in {tenant}-individual-index-v1** (enc-service format `316090|<base64>`).
   Plaintext beneficiary-ID search there is impossible; plaintext lives only in id_pool and tracer
-  error messages. Also NOT denormalized onto {tenant}-project-task-index-v1 (query_string probe
-  on ch = 0 hits) — reporting/dashboards unaffected by beneficiary-ID duplicates.
+  error messages. On task docs: `Data.additionalDetails.beneficiaryId` EXISTS on ch but is too
+  sparse to use (~1% joint coverage — flow-dependent nav param; a duplicate is visible only when
+  BOTH children's tasks carry it: agg found just 3 of the 21,179 known pairs). Do NOT use the
+  task index for duplicate detection or existence conclusions — a 0-hit probe on one ID proves
+  nothing (that's how "not denormalized" was wrongly concluded 2026-08-10; corrected 08-11).
+  Reporting/dashboards remain unaffected. Bonus from the 3 hits: 2911861 = first directly
+  OBSERVED silent collision (two children, one ID, zero tracer errors).
 - **idgen `_update` tracer requestBody IS valid quoted JSON** (json.loads works) — the global
   "tracer bodies are unquoted pseudo-JSON" gotcha applies to entity-create bodies only.
 - **ch.individual usernames ARE populated** (unlike kd, where the column is NULL for CDDs and you
@@ -141,3 +146,98 @@ positive. See the hcm-qa skill's verification-methodology for the full protocol.
 - **Interrupted first bootstrap bricks the Chad app**: airplane mode mid-first-sync saves a
   project without projectType -> `AppException 'No beneficiary type is selected'` on every home
   load; only Clear Data recovers.
+
+## ES query-authoring gotchas (2026-08-17, Chad SMC Cycle 2)
+
+- **`cycleIndex` is zero-padded TEXT ("01"/"02") — the OPPOSITE of doseIndex ("1"/"2"/"3",
+  gotcha 14).** `term` on `.keyword` is exact: filtering `cycleIndex.keyword="2"` returns 0
+  while 1,276 docs carry `"02"`. This produced Chad Cycle 2 Day 1's all-zero report (staff
+  query worked — it doesn't use the filter — which localizes the fault to task-query filters).
+  Pipeline fix: `config.py _pad_cycle()` zfills digit-only sheet values.
+- **`terms` agg `"missing": "<string sentinel>"` on a DATE-mapped field throws** (`parse_exception:
+  failed to parse date field [SENTINEL]`, all shards fail). On date fields use a separate
+  `{"missing": {"field": ...}}` agg and add `"format": "yyyy-MM-dd"` to the terms agg so bucket
+  keys come back readable instead of epoch millis.
+- **A 0-doc pipeline result minutes after field work starts is ambiguous** — "data not synced
+  yet" and "filter matches nothing" look identical. Don't accept the timing explanation until
+  an unfiltered/less-filtered agg proves matching docs exist (Chad: the timing read was wrong;
+  the cycle_index value was the cause).
+
+## mhbase / console-testing gotchas (2026-08-18/19)
+22. **202 != persisted, championship edition:** household create without `householdType` -> 202,
+    searchable for 60s (Redis), then silently dropped FOREVER (no DLQ replay). Any "it worked, I got
+    the response" claim within 60s of create is a cache false positive. Verify at t+100s.
+23. **Child back-fill ids come from the CACHE, not the DB:** member.householdId showing a valid
+    H-id does NOT prove the household persisted - enrichment copies the pre-generated id from Redis
+    at create time. Never use back-fill as commit proof; it's exactly how ghost families look intact.
+24. **Unified template:** pre-filled rows immutable (IMMUTABLE_ORPHAN_ROWS), targets mandatory on
+    ALL boundary rows, Facility Type Warehouse-only, phones numeric-11-digit tenant-unique,
+    new boundaries only via Boundary Management (names reject backtick/double-quote).
+25. **Excel-open overwrite trap:** scripting an xlsx the user has open = Excel's next save wipes
+    your changes silently. Save to a NEW filename + read back from disk to verify.
+26. **adb payload extraction:** Individual.identifiers[] have their own clientReferenceId - regexing
+    all crefs overcounts entities and creates false "missing" records.
+27. **Single-session tokens:** any re-login as the same user (e.g. portal login for stock testing)
+    invalidates the API token -> a whole suite 401s mid-run. Coordinate account usage before long runs.
+28. **Transformer topic naming is asymmetric:** source topics are tenant-prefixed, the error topic
+    is GLOBAL/unprefixed (`transformer-error-topic`). Tracer topic is `egov-tracer-error-details-enriched`.
+29. **Transformer consumers expect List<Entity>:** push `[ {...} ]`, never a bare object - a bare
+    object fails at deserialization before enrichment, silently invalidating any enrichment-path test.
+30. **Always inject a CONTROL** (valid payload) in Kafka-injection suites: "no error emitted" is
+    meaningless unless you have proof the happy path works in the same window.
+31. **ES index absence != permission problem:** indices are created lazily on first document. A 404
+    on an index means no doc ever landed (upstream/indexer gap); a 403 means permissions. Also
+    `readonly-user` may 403 on cluster-root/_cat while still reading indices - test the index directly.
+
+## Transformer error-index gotchas (2026-08-24, mhbase round 2)
+
+- **`transformer-error-index-v1` doc `_id` is a UUIDv3 = content hash.** Identical payloads
+  collapse to one doc, ACROSS RUNS (a later run silently overwrites an earlier run's error doc —
+  observed on doc `401501dc-...`, 17:45:40 -> 17:53:44). The index cannot express failure
+  frequency; Kafka retains every redelivery, ES does not. Never quote an error-index doc count as
+  a failure count, and never assume your test evidence survives the next run.
+- **A `missing` agg on `<field>.keyword` over-counts.** It counts truly-null values PLUS values
+  whose keyword subfield was dropped by `ignore_above`. Our blank-`errorMessage` reading went from
+  10 to the correct 6 once measured with `must_not exists` on the text field. Use `exists` on the
+  text field for null-ness; reserve `missing` on `.keyword` for "cannot be aggregated".
+- **`payload.keyword` / `stackTrace.keyword` are in `_ignored` on nearly every doc** (over
+  `ignore_above`) -> cannot be term-queried or aggregated, only full-text matched. A terms agg on
+  them silently returns fewer buckets than there are docs rather than erroring.
+- **`errorMessage` embeds the offending payload** (Jackson inlines it), so its cardinality equals
+  the number of distinct payloads — a terms agg on it can never group. Tell-tale: the only bucket
+  with `doc_count > 1` is the one where Jackson wrote `(StringReader)` instead of the payload.
+- **`match_phrase` on `errorMessage` for a dotted FQN (`models.project.Task`) returns ZERO.** The
+  standard analyzer does not tokenize it the obvious way. Run `_analyze` on the field before writing
+  any `match` clause against this index — guessing costs a whole query round.
+- **`now/d` is UTC.** For WAT campaigns add `"time_zone": "+01:00"` or you lose 00:00-01:00 into
+  "yesterday".
+- **Error docs carry no entity identity** (no clientReferenceId / entity id / tenantId field), so
+  an error cannot be correlated to the record that failed, nor filtered per tenant on this GLOBAL
+  un-prefixed index.
+- **Empty `{}` is NOT a silent no-op** (old TC-02 claim, now corrected): consumers deserialize
+  `List<Entity>`, so a bare object dies at parse and DOES produce an error doc. Empty array `[]`
+  genuinely produces nothing.
+
+## Correlation-id / template gotchas (2026-08-26)
+
+- **A correlation-id search with no control is worthless.** ES/Loki prove presence, never absence.
+  Always pair the id search with a search on a record id that definitely exists; if the control is
+  empty the time range or selector is wrong and every other result is uninterpretable.
+- **Grafana's default 15-min window rolls fast.** Early "propagation totally broken" readings were
+  just late searches. Search within minutes of the call, or widen the range deliberately.
+- **Search the GATEWAY-minted correlation id, not the one you sent.** On mhbase the gateway mints its
+  own and forwards that downstream; the client's id survives only in the first service's MDC.
+- **The propagation report's PASS criterion is the downstream LOG line, not the response header.**
+  Only the mint case (TC06) tests the header. Reading "sent != returned" as a defect is a false positive.
+- **A missing mdms hop is usually a cache hit, not a propagation failure.** If there is no
+  `RestTemplateLoggingInterceptor: Sending request to mdms-v2` line, the call never happened.
+- **Kafka consumer threads read `[er#0-0-C-1]`; HTTP threads read `[080-exec-8]`.** The thread name is
+  the only reliable proof that the Kafka hop actually executed.
+- **household-member does not use idgen** (member ids are UUIDs, not `H-`/`F-` format). An empty idgen
+  log result on that path is expected, not a finding.
+- **Unified template: Facility USAGE (col M) is editable, Facility TYPE (col J) is not.** Editing any
+  pre-filled cell returns `IMMUTABLE_CELL_TAMPERED` and fails the WHOLE sheet; a row-level `invalid`
+  only skips that row. Never "fix" a validation error by editing a pre-filled column.
+- **`ws.cell(r,c,value=None)` does not clear a cell** — assign `.value = None` explicitly.
+- **openpyxl `delete_rows` must run bottom-up** or indices shift under you.
+- **Saving over a workbook that is open in Excel raises PermissionError** — write to a new name.

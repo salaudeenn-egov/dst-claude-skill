@@ -82,7 +82,9 @@ one fact underlies nearly all HCM investigation, recovery, dev, and QA work.
   `so`=Sokoto, `ba`=Bauchi, `oy`=Oyo, `na`=Nasarawa, `ko`=Kogi, `ab`=FCT/Abuja,
   `od`=Ondo, `kd`=Kaduna, `tg`=Togo, `cg`=Congo, `mz`=Mozambique, `pl`=Plateau,
   `ke`=Kebbi, `si`=Sierra Leone.
-- **Drugs/age bands:** SMC = SPAQ (SPAQ2 3-11m, SPAQ1 12-59m; treated 3-59m).
+- **Drugs/age bands:** SMC = SPAQ (**SPAQ1 = 3-11m, SPAQ2 = 12-59m**; treated 3-59m).
+  (Corrected 2026-08-24 — these two labels were swapped here; the CODE is right,
+  see dst/reporting.md for the evidence chain.)
   AZM = Azithromycin (1-11m, 12-59m; treated 1-59m). MRDN/SPAQ (Togo) 0-3m/3-11m/12-59m.
 - **DIGIT writes return HTTP 202 (Accepted), not 200** — check `in (200, 202)`.
 - **egov-tracer `requestBody` is unquoted (not valid JSON)** — `json.loads()` fails
