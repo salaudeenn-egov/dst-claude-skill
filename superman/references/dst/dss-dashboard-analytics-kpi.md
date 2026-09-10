@@ -261,6 +261,50 @@ timeliness) declared already covered by existing charts; NOT-REPORTED band decli
 Build focus = operational tier (zero-report, CDD activity+sync, workload band,
 mop-up), then reconciliation.
 
+## 2026-09-10 — HCM-KEBBI CENTRAL-UAT audit (ITN-Dashboard-Redesign stream)
+
+Problem: a second config fork appeared — `HCM-KEBBI/health-campaign-config` branch
+`CENTRAL-UAT` — carrying the ITN dashboard redesign (author Surya Chetty) with new
+stock/coverage KPIs; needed the same validation the ba PROD config got. Misleading
+first read: the local clone at `D:\DST\repos\health-campaign-config` looked like the
+right repo but pointed at egovernments/DEMO — fixed by adding remote `hcm-kebbi` and
+checking out `CENTRAL-UAT` (origin/DEMO left intact; three config forks now coexist:
+egov DEMO, HCM-BAUCHI PROD, HCM-KEBBI CENTRAL-UAT).
+Approach: repo survey + reran `validate_chartapi.py` per tenant
+(`findings_UAT_{bednet,ke,si}.csv` in dss-dq-kpis) + read the new KPI chart
+definitions and the adding commits (e72a64da Excess/Loss, 9e1a4f39
+Beneficiaries-not-Administered, 11754930 Kibana Stock Summary).
+
+Repo shape: 5 tenants (abia, ba, bednet, ke, si), ~1.3-1.4K charts each; bednet+si
+carry the new BEDNET national dashboard; also per-tenant egov-indexer (24 YMLs) +
+egov-persister trees and the bednet payment-voucher pdf-service configs.
+
+New-KPI verdicts:
+- Excess/Loss stock KPIs: stock-index filter
+  `Data.additionalDetails.stockEntryType.keyword = EXCESS|LOSS`, sum
+  `Data.physicalCount`; percentage vs task-index quantity sum. Formula sound BUT all
+  four have empty dateRefField (date picker ignored), the % is the uncapped/silent
+  PercentageComputedField, and the denominator uses `match_phrase
+  Data.productVariant:"PVAR"` which matches EVERY product variant — fine single-product,
+  wrong the day a second product lands.
+- beneficiariesNotAdministered*Percent: `computeMultiPaths: true` line charts (the
+  8-path ACTION_ARITY flags are the known validator over-reach), BUT the first query
+  ("Beneficiary Refused", terms on `lga`) has NO size while every sibling uses
+  size 500 -> default-10 truncation inside one chart's own numerator. Also mixes
+  pre-agg summary indices (refused/ineligible/registered from
+  population-coverage-summary-datewise + ineligible-summary) with live indices
+  (died/migrated/absent from project-task, SE/referrals) — different freshness per term.
+Hard errors (bednet + si): `totalHouseholdsNotDeliveredDrilldownProvinceBednetsICCD`
+has UNPARSEABLE aggrQuery JSON (leftover from the Households-Not-Delivered removal —
+NPEs if reached); dangling drill `householdsITNsRedeemedHeatMapProvinceBednetsICCD`;
+an empty `{}` chart entry in level-two `DSS_HEALTH_ATTENDANCE_SUMMARY` (viz 10005).
+Bulk stats match the PROD fleet pattern (bednet: 1,477 TERMS_DEFAULT_SIZE / 818
+NO_DATE_FILTER / 147 dead charts).
+
+Setup how-to (role mappings, MDMS action tests, tabs/rows, Kibana iframeRoutes, date
+ranges per role) now lives in `dst/dss-dashboard-setup.md` + the written guide at
+`D:\DST\dss-dashboard\DSS_Dashboard_Setup_Guide.md`.
+
 ## Tools built this session
 
 - `D:\DST\scripts\dss-dq-kpis\validate_chartapi.py` — static chart-config auditor

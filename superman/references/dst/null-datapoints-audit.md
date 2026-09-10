@@ -15,11 +15,18 @@ Lat / Long, plus SPAQ1 (3-11m) / SPAQ2 (12-59m) age-band mismatches, over the ex
 D&E Reports dump (local copy `C:\DE`, Drive tree `D_AND_E Reports/`). 32 state-cycle rows
 across 13 tenants (ba bo ch ab jg kd ke ko na oy pl so zf).
 
-## Rules (user-set, verified)
+## Rules (user-set, verified; v3 2026-09-10)
 
-- **Child Name = blank-only missing** — field is mandatory in the app, so typed "na"/"nan"
-  counts as filled. All other data points use the null-string set
-  (`"", null, nan, none, n/a, na, decrypt_failed`).
+- **Child Name AND HH Head Name = blank-only missing** — both are mandatory typed input,
+  so any typed text ("na"/"nan") counts as filled — EXCEPT a literal `DECRYPT_FAILED`
+  value, which is a decryption-pipeline artifact (not a name) and always counts as
+  missing PLUS gets its count called out in the Note column
+  ("DECRYPT_FAILED values (decryption pipeline failure, counted as missing): ...").
+  Non-name data points use the null-string set
+  (`"", null, nan, none, n/a, na, decrypt_failed`). Impact of v3 rule change: Bauchi C1
+  HH-head 68 -> 26, C2 53 -> 88 (v2 had also changed), C3 -> 6; Chad 1,606 -> 1,604
+  (Chad's HH-head nulls are real blanks, and its Referred column has 0 "yes" rows in the
+  export, so referral exclusion changes nothing there).
 - **Referral/OIC rows excluded** from null counts (structural: no HH link, no GPS —
   100% verified). Matched via `Children Referred == Yes` or
   `Administration Status == Children Referred`, fallback username contains OIC.
@@ -96,11 +103,32 @@ tab. Sequence matters — wait for the watcher to exit before the final push or 
 overwrite it on its next tick. Background exit code -1 from the harness does NOT mean the
 script failed — check the log for "FINAL TABLE"/"Written:".
 
-## Perf
+## Perf + surviving OS low-memory kills (v3 lesson)
 
-`pd.read_excel(engine="calamine", usecols=<callable>)` ~25-40s per 1M-row sheet; the
-full 34-source dump = ~31 min with all-sheets reading. Read only needed columns via the
+`pd.read_excel(engine="calamine", usecols=<callable>)` ~25-60s per 1M-row sheet (load-
+dependent); the full 34-source dump = ~31-60 min. Read only needed columns via the
 usecols callable; `del df` between files.
+
+**Problem.** On a RAM-starved machine (<1.5 GB free; Power BI msmdsrv / vmmemWSL eating
+memory) the Claude Code harness KILLS background tasks whenever system memory runs low —
+even tiny ones like the sheet watcher, and even after per-sheet refactoring. Four
+launches died mid-read.
+
+**Fix stack (all three now in dump_analysis.py):**
+1. **Per-sheet processing** — never `sheet_name=None` + concat (holds whole workbook
+   twice); list `CalamineWorkbook.sheet_names`, read/process/`del`/`gc.collect()` one
+   sheet at a time. Truncation flag = LAST sheet at cap.
+2. **Checkpoint/resume** — after each source set, serialize its aggregates to
+   `dump_analysis_ckpt.json`; on restart skip done sources and RE-EMIT their `=>`
+   summary lines to the log (keeps the sheet watcher's regex feed complete). Checkpoint
+   auto-deleted after a full run.
+3. **Foreground time-budget chunking** — the memory killer targets BACKGROUND commands
+   only, so run `python dump_analysis.py <budget_seconds>` as repeated FOREGROUND calls
+   (budget ~120-300s; check fires between sources, so budget + worst single source must
+   stay under the 600s foreground tool ceiling). Each call resumes from checkpoint.
+
+Also: a background task's exit code -1 in the harness does NOT mean script failure —
+check the log for "FINAL TABLE"/"Written:".
 
 ## Scope note
 

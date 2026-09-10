@@ -143,6 +143,27 @@ The stable core everything else builds on.
   RDT checklist counts), funder expectations (Gates/GF/PMI/AMF/GiveWell), and KPI
   catalog v2 (#16-43: forensics, present-but-idle, projected completion, sync-lag
   honest form). Read BEFORE any DSS chart config change or dashboard KPI proposal.
+- `dst/dss-dashboard-setup.md` — how to stand up a NEW DSS dashboard (new campaign
+  type or cycle): the four config files incl. RoleDashboardMappingsConf /
+  RoleDashboardConfig (role -> dashboard-ID lists, per-cycle ID suffixes),
+  MasterDashboardConfig tab/row/vizArray rules (same name = same tab, unique row
+  numbers per tab, file-wide unique viz IDs, >4 cards throws), requestQueryMap filter
+  plumbing (projectTypeId path differs task vs household/stock indices), role-dependent
+  date-range sourcing (national = project index, provincial/district = project-search
+  DB), Kibana embedding via MDMS iframeRoutes, and the MDMS access setup (two action
+  tests + role actions per link), PLUS chart calculation internals from KT sessions
+  2-4: filterForCurrentDay/GMT today-metrics, agg-filter-only query parsing (top-level
+  query.bool ignored), cycleIndex long-vs-keyword, numerator-first percentage rules,
+  aggregation-path placement per chart type (above split for bars, nested for
+  heatmaps), heatmap geojson/MDMS pipeline + literal `percentageValue`, xtable
+  excludedColumns + ordered computedFields, pie selectedStack drill, prediction-chart
+  mechanics, Kibana geo_point pre-mapping + public-share-URL embeds, lat/long `points`
+  charts + literal `status` field, SMC/IRS progress-bar masters (endDate +1 day; IRS
+  active-day epoch lists), and the remove-from-master-only chart-removal rule. The
+  COMPLETE 26-section guide is bundled as `dst/dss-dashboard-setup-guide-full.md`
+  (user copies at `D:\DST\dss-dashboard\DSS_Dashboard_Setup_Guide.md` + .docx). Read
+  the setup file before creating, modifying, or wiring any dashboard chart; open the
+  full bundled guide when executing the work.
 - `dst/dashboard-recon-tool.md` — the `D:\DST\scripts\dashboard-recon` notebook utility that
   automates report-vs-dashboard reconciliation (campaign-type config smc/azm/itn + vas/ors_zinc
   addons, Summary-Report .xlsx export as primary dashboard source, Gemini-screenshot fallback
@@ -247,6 +268,15 @@ The stable core everything else builds on.
 
 ## Changelog
 
+- 2026-09-10 (later) — `dst/null-datapoints-audit.md` updated for the v3 audit run.
+  (1) Rule change: HH Head Name now blank-only like Child Name (typed "na" = filled),
+  with DECRYPT_FAILED still missing + surfaced in the Note column; Chad Referred=yes
+  exclusion added (turned out 0 rows in the export — Chad's 1,604 HH-head nulls are real
+  blanks). (2) NEW "surviving OS low-memory kills" section: the harness kills BACKGROUND
+  tasks under system memory pressure regardless of the task's own footprint (4 launches
+  died at <1.5 GB free); fix stack = per-sheet reads (never sheet_name=None+concat) +
+  per-source checkpoint/resume (re-emit summary lines for the watcher) + foreground
+  time-budget chunking (`dump_analysis.py <seconds>`, killer only targets background).
 - 2026-09-10 — NEW `dst/cross-cycle-cohort-reports.md` (cohort-script reviews, same-day
   session). Problem: "does this report capture reuse from Cycle 1 to Cycle 2?" — two
   scripts reviewed (Chad generator + Sokoto draft). Approach: traced how the pivot key
@@ -269,6 +299,25 @@ The stable core everything else builds on.
   (no GPS/productName; Referred/Ineligible column names -> referral exclusion didn't
   trigger, OPEN item), blank-vs-0 semantics on the audit sheet, and the live
   log->Google-Sheet watcher + xlsx-verified final-push pattern.
+- 2026-09-10 — NEW `dst/dss-dashboard-setup.md` + `dst/dss-dashboard-analytics-kpi.md`
+  extended (HCM-KEBBI CENTRAL-UAT session). Problem: a third config fork
+  (HCM-KEBBI/CENTRAL-UAT, ITN-Dashboard-Redesign) carried new Excess/Loss stock and
+  Beneficiaries-not-Administered KPIs needing the ba-PROD-style validation; misleading
+  first read: the local clone pointed at egovernments/DEMO (fixed via added remote,
+  not re-clone). Approach: validate_chartapi.py rerun on bednet/ke/si
+  (findings_UAT_*.csv) + commit-level read of the new KPI definitions. Findings: new
+  KPIs formula-sound but empty dateRefField + uncapped % + match_phrase "PVAR"
+  matches all variants; a real default-10 terms truncation INSIDE
+  beneficiariesNotAdministered's own refused-numerator; leftover chart with
+  unparseable aggrQuery JSON; dangling drill; empty {} master chart entry; Kibana
+  Stock Summary has no ndjson in the repo. Also transcribed FOUR dashboard KT
+  sessions (Hanu) into `D:\DST\dss-dashboard\DSS_Dashboard_Setup_Guide.md` (+ .docx,
+  26 sections) and encoded them as the new setup reference: setup/config (role
+  mappings, MDMS action tests, tab/row/vizArray rules, requestQueryMap,
+  role-dependent date ranges) + calculation internals (agg-filter-only parsing,
+  chart-type-dependent aggregation-path placement, literal `percentageValue`/`status`
+  newFields, xtable excludedColumns, pie selectedStack, prediction chart, Kibana
+  geo_point pre-mapping, SMC/IRS progress-bar masters, remove-from-master-only rule).
 - 2026-09-10 — NEW `qa/stock-supply-chain-flow.md` (curated from stock-flow test memory,
   2026-08-24 session). Problem: stock transfers silently offer no receiver when warehouse
   users are stacked at one level — looks like missing master data. Approach: reasoned from
