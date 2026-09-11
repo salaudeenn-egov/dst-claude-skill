@@ -60,6 +60,7 @@ never present a single run or a cache hit as proof.
 - `~/.claude/skills/superman/references/qa/persister-regression.md` — persister/bulk regression: method, verified behaviours, evidence-backed unhandled edge cases.
 - `~/.claude/skills/superman/references/qa/mhbase-console-perf-testing.md` — mhbase env + console perf benchmarking: householdType silent-drop root cause, template rules, benchmark tiers/mapping, device-log QA.
 - `~/.claude/skills/superman/references/qa/chad-upload-error-from-app.md` — live-device app-upload QA method (adb + flutter logcat).
+- `~/.claude/skills/superman/references/qa/stock-supply-chain-flow.md` — stock/supply-chain flow testing: one WAREHOUSE_MANAGER per boundary level (country->state->LGA->ward->HF) + DISTRIBUTOR at leaf, verified mhbase 6-user setup, console conventions, reporting-side stock facts.
 
 ## Lane 4 — Code review
 
